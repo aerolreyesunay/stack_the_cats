@@ -53,17 +53,6 @@ void main() {
       expect(SelfChallenge.swingSpeedFor(100), 580);
     });
 
-    test('the cushion sways from 20 cats, gently', () {
-      expect(SelfChallenge.swayFor(19).amplitude, 0);
-      final first = SelfChallenge.swayFor(20);
-      final last = SelfChallenge.swayFor(99);
-      expect(first.amplitude, greaterThan(0));
-      expect(last.amplitude, greaterThan(first.amplitude));
-      expect(last.period, lessThan(first.period));
-      // Never fast: a full swing takes at least 3 seconds.
-      expect(last.period, greaterThanOrEqualTo(3));
-    });
-
     test('rewards by cats reached', () {
       expect(SelfChallenge.rewardFor(49), (tuna: 0, salmon: 0));
       expect(SelfChallenge.rewardFor(50), (tuna: 1, salmon: 0));
@@ -71,6 +60,21 @@ void main() {
       expect(SelfChallenge.rewardFor(75), (tuna: 0, salmon: 1));
       expect(SelfChallenge.rewardFor(99), (tuna: 0, salmon: 1));
       expect(SelfChallenge.rewardFor(100), (tuna: 1, salmon: 1));
+    });
+  });
+
+  group('CushionSway', () {
+    test('still for 20 cats, then grows every 20 until 100', () {
+      expect(CushionSway.at(19).amplitude, 0);
+      final first = CushionSway.at(20);
+      final top = CushionSway.at(100);
+      expect(first.amplitude, greaterThan(0));
+      expect(top.amplitude, greaterThan(first.amplitude));
+      expect(top.period, lessThan(first.period));
+      expect(CushionSway.at(99), CushionSway.at(80));
+      // No faster or wider after 100 cats, and never fast.
+      expect(CushionSway.at(500), top);
+      expect(top.period, greaterThanOrEqualTo(3));
     });
   });
 

@@ -307,8 +307,8 @@ class StackGame extends FlameGame {
   double get groundY => size.y - 110; // top of the cushion, in tower coords
   double get baseX => size.x / 2;
 
-  /// Where the cushion is now: it sways from side to side in the Self
-  /// Challenge (carrying the tower), and stays in the middle otherwise.
+  /// Where the cushion is now: it sways from side to side (carrying the
+  /// tower) once the tower has 20 cats.
   double get platformX => baseX + platformOffset;
   double platformOffset = 0;
   double _swayPhase = 0;
@@ -508,9 +508,10 @@ class StackGame extends FlameGame {
   void realign(PayWith paidWith) {
     if (!canRealign.value || !realigns.canUse(paidWith)) return;
     realigns.use(paidWith);
-    _realignFrom = [for (final c in tower) c.x];
+    // How far each cat is from the cushion: those gaps shrink to nothing.
+    _realignFrom = [for (final c in tower) c.x - platformX];
     _realignT = 0;
-    _popup('Realigned!', baseX, groundY - tower.length * catH - catH);
+    _popup('Realigned!', platformX, groundY - tower.length * catH - catH);
   }
 
   void _updateRealign(double step) {
@@ -519,11 +520,11 @@ class StackGame extends FlameGame {
     _realignT = min(1.0, _realignT + step / _realignDuration);
     final t = Curves.easeOutBack.transform(_realignT);
     for (int i = 0; i < tower.length && i < from.length; i++) {
-      tower[i].x = from[i] + (baseX - from[i]) * t;
+      tower[i].x = platformX + from[i] * (1 - t);
     }
     if (_realignT >= 1) {
       for (final c in tower) {
-        c.x = baseX;
+        c.x = platformX;
       }
       _realignFrom = null;
     }
@@ -683,11 +684,13 @@ class StackGame extends FlameGame {
     score++;
     onScore?.call(score);
     if (_speedAt(score) > _speedAt(score - 1)) {
-      _speedMessage = rules.isSelfChallenge && score == SelfChallenge.step
-          ? 'Faster! Watch the cushion!'
-          : rules.isSelfChallenge
-          ? 'Faster! The cushion sways more!'
-          : 'Speed increased!';
+      _speedMessage = 'Speed increased!';
+      _speedMessageLeft = _speedMessageTime;
+    }
+    if (CushionSway.at(score) != CushionSway.at(score - 1)) {
+      _speedMessage = score == CushionSway.step
+          ? 'Watch out: the cushion sways!'
+          : 'The cushion sways more!';
       _speedMessageLeft = _speedMessageTime;
     }
     var earned = 0;
@@ -765,12 +768,12 @@ class StackGame extends FlameGame {
     return true;
   }
 
-  /// Self Challenge: the cushion drifts from side to side, more every 20
-  /// cats, and the tower rides on it. The size of the sway eases in, so it
-  /// never jumps.
+  /// The cushion drifts from side to side, more every 20 cats (up to 100),
+  /// and the tower rides on it. The size of the sway eases in, so it never
+  /// jumps.
   void _swayPlatform(double step) {
-    if (!rules.isSelfChallenge || phase == Phase.over) return;
-    final sway = SelfChallenge.swayFor(score);
+    if (phase == Phase.over) return;
+    final sway = CushionSway.at(score);
     _swayAmplitude += (sway.amplitude - _swayAmplitude) * min(1.0, step * 1.5);
     if (sway.period > 0) _swayPhase += 2 * pi / sway.period * step;
     final next = _swayAmplitude * sin(_swayPhase);
