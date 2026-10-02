@@ -87,6 +87,52 @@ class RunRules {
   bool get isChallenge => catSeed != null;
 }
 
+/// How close a tower is to toppling, and which way it would go.
+class TowerBalance {
+  const TowerBalance({required this.stability, required this.tilt});
+
+  static const level = TowerBalance(stability: 1, tilt: 0);
+
+  /// 1 = perfectly balanced, 0 = about to topple.
+  final double stability;
+
+  /// How far the worst level leans, from -1 (about to fall left) to 1
+  /// (about to fall right).
+  final double tilt;
+
+  /// -1 if it would tumble left, 1 right, 0 if it's (nearly) straight.
+  int get side => tilt.abs() < 0.08 ? 0 : tilt.sign.toInt();
+
+  int get percent => (stability * 100).round().clamp(0, 100);
+
+  /// Uses the same rule as the game: for every cat, the combined centre of
+  /// all the cats above it (itself included) must sit over the one below
+  /// (or over the cushion, for the bottom cat). The level nearest to
+  /// failing decides. [xs] are the cats' centres, bottom first.
+  static TowerBalance of(
+    List<double> xs, {
+    required double baseX,
+    required double baseHalf,
+    required double catHalf,
+  }) {
+    if (xs.isEmpty) return level;
+    double sum = 0;
+    int count = 0;
+    double worst = 0;
+    for (int i = xs.length - 1; i >= 0; i--) {
+      sum += xs[i];
+      count++;
+      final centre = sum / count;
+      final support = i == 0 ? baseX : xs[i - 1];
+      final half = i == 0 ? baseHalf : catHalf;
+      final lean = (centre - support) / half;
+      if (lean.abs() > worst.abs()) worst = lean;
+    }
+    final tilt = worst.clamp(-1.0, 1.0);
+    return TowerBalance(stability: 1 - tilt.abs(), tilt: tilt);
+  }
+}
+
 class StackGame extends FlameGame {
   StackGame({
     this.onExitToMenu,
@@ -552,6 +598,15 @@ class StackGame extends FlameGame {
     }
     popups.removeWhere((p) => p.life <= 0);
     _speedMessageLeft = max(0.0, _speedMessageLeft - step);
+
+    balance = TowerBalance.of(
+      [for (final c in tower) c.x],
+      baseX: baseX,
+      baseHalf: baseW / 2,
+      catHalf: catW / 2,
+    );
+    // The needle glides rather than jumps.
+    _shownTilt += (balance.tilt - _shownTilt) * min(1.0, step * 8);
   }
 
   void _checkLanding(Cat cat) {
@@ -690,6 +745,10 @@ class StackGame extends FlameGame {
     }
     return true;
   }
+
+  /// The tower's balance right now, for the stability meter.
+  TowerBalance balance = TowerBalance.level;
+  double _shownTilt = 0;
 
   double _towerCenter() {
     if (tower.isEmpty) return baseX;
@@ -869,6 +928,85 @@ class StackGame extends FlameGame {
         'Tap to drop the cat!',
         Vector2(size.x / 2, size.y * 0.5),
         anchor: Anchor.center,
+      );
+    }
+
+    if (tower.length >= 2 && phase != Phase.over) _renderStabilityMeter(canvas);
+  }
+
+  /// "Stability 72%" at the bottom of the screen, with a needle that leans
+  /// the way the tower would tumble, and a tip once it gets wobbly.
+  void _renderStabilityMeter(Canvas canvas) {
+    final b = balance;
+    final color = b.percent >= 70
+        ? const Color(0xFF3E9B5B)
+        : b.percent >= 40
+        ? const Color(0xFFE09B2D)
+        : const Color(0xFFD64933);
+    final wobbly = b.percent < 50 && b.side != 0;
+    const width = 260.0;
+    final height = wobbly ? 72.0 : 54.0;
+    final rect = Rect.fromCenter(
+      center: Offset(size.x / 2, size.y - 16 - height / 2),
+      width: width,
+      height: height,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(16)),
+      Paint()..color = const Color(0xE6FFFFFF),
+    );
+
+    // "Stability 72%  ·  leaning right"
+    final lean = switch (b.side) {
+      -1 => '  ·  leaning left',
+      1 => '  ·  leaning right',
+      _ => '',
+    };
+    TextPaint(
+      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color),
+    ).render(
+      canvas,
+      'Stability ${b.percent}%$lean',
+      Vector2(rect.center.dx, rect.top + 8),
+      anchor: Anchor.topCenter,
+    );
+
+    // The gauge: a track with the middle marked and the needle at the lean.
+    final trackY = rect.top + 34;
+    const trackHalf = 100.0;
+    final cx = rect.center.dx;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTRB(cx - trackHalf, trackY - 3, cx + trackHalf, trackY + 3),
+        const Radius.circular(3),
+      ),
+      Paint()..color = const Color(0x338A6A55),
+    );
+    canvas.drawRect(
+      Rect.fromCenter(center: Offset(cx, trackY), width: 2, height: 12),
+      Paint()..color = const Color(0x998A6A55),
+    );
+    canvas.drawCircle(
+      Offset(cx + _shownTilt.clamp(-1.0, 1.0) * trackHalf, trackY),
+      7,
+      Paint()..color = color,
+    );
+
+    // The fix: land the next cat on the other side.
+    if (wobbly) {
+      TextPaint(
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF5B3A29),
+        ),
+      ).render(
+        canvas,
+        b.side > 0
+            ? '◀  Land the next cat on the left'
+            : 'Land the next cat on the right  ▶',
+        Vector2(cx, trackY + 12),
+        anchor: Anchor.topCenter,
       );
     }
   }
