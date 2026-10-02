@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../ui/info_dialog.dart';
 import '../challenge/challenge_screen.dart';
 import '../challenge/challenge_service.dart';
 import '../economy/invites.dart';
@@ -60,9 +61,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
       if (accept) {
         await _service.acceptRequest(request.from);
         if (mounted) {
-          _say(
-            'You and ${request.name} are now friends! '
-            '+${Treats.friendAcceptedReward} treats',
+          await showInfoDialog(
+            context,
+            title: catCheer(),
+            message: 'You and ${request.name} are now friends!',
+            icon: Icons.favorite_rounded,
+            treats: Treats.friendAcceptedReward,
           );
         }
       } else {
@@ -70,7 +74,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
       }
     } catch (e) {
       debugPrint('Answering friend request failed: $e');
-      if (mounted) _say("Couldn't do that. Check your connection.");
+      if (mounted) {
+        await showInfoDialog(
+          context,
+          title: "Couldn't do that",
+          message: 'Check your connection and try again.',
+          icon: Icons.wifi_off_rounded,
+        );
+      }
     } finally {
       if (mounted) setState(() => _answering.remove(request.from));
     }
@@ -87,8 +98,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
     try {
       final earned = await _service.shareInvite(code);
       if (earned > 0 && mounted) {
-        _say(
-          'Thanks for sharing! +$earned ${earned == 1 ? 'treat' : 'treats'}',
+        await showInfoDialog(
+          context,
+          title: catCheer(),
+          message: 'Thanks for sharing your invite!',
+          icon: Icons.share_rounded,
+          treats: earned,
         );
       }
     } catch (e) {
@@ -105,14 +120,28 @@ class _FriendsScreenState extends State<FriendsScreen> {
     try {
       final result = await _service.redeemCode(_codeField.text);
       if (!mounted) return;
-      _say(switch (result) {
-        RedeemResult.friendJoined ||
-        RedeemResult.friendAdded => 'You are now friends!',
-        RedeemResult.alreadyFriends => "You're already friends.",
-        RedeemResult.ownCode => "That's your own code!",
-        RedeemResult.notFound => 'No player has that code.',
-        RedeemResult.invalid => 'Codes are 6 letters and numbers.',
-      });
+      final (title, message) = switch (result) {
+        RedeemResult.friendJoined || RedeemResult.friendAdded => (
+          "You're now friends!",
+          'You can see each other in your friends lists and challenge each '
+              'other.',
+        ),
+        RedeemResult.alreadyFriends => (
+          'Already friends',
+          "You're already friends with this player.",
+        ),
+        RedeemResult.ownCode => (
+          "That's your code!",
+          'Enter a friend\'s code.',
+        ),
+        RedeemResult.notFound => ('Code not found', 'No player has that code.'),
+        RedeemResult.invalid => (
+          'Not a code',
+          'Invite codes are 6 letters and numbers.',
+        ),
+      };
+      await showInfoDialog(context, title: title, message: message);
+      if (!mounted) return;
       if (result == RedeemResult.friendJoined ||
           result == RedeemResult.friendAdded) {
         _codeField.clear();

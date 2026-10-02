@@ -13,6 +13,7 @@ import '../services/friends_service.dart';
 import '../services/player_service.dart';
 import '../ui/account_panel.dart';
 import '../ui/daily_reward_dialog.dart';
+import '../ui/info_dialog.dart';
 import '../ui/treat_confetti.dart';
 import '../ui/treats_ui.dart';
 import 'friends_screen.dart';
@@ -104,40 +105,70 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       ),
     );
     _maybeShowDaily(); // the daily reward waits its turn
+    _showWaiting();
   }
 
-  /// "Maria accepted your friend request! +5 treats"
-  void _showRequestsAccepted() {
+  bool _showingAccepted = false;
+
+  /// "Maria accepted your friend request! +5 treats", as a pop-up with
+  /// treat confetti. Only on this screen: if it happens during a game (or
+  /// on another page, or under another pop-up), it waits until the player
+  /// is back here.
+  Future<void> _showRequestsAccepted() async {
     final names = _accepted.value;
-    if (names.isEmpty || !mounted) return;
+    if (names.isEmpty || !mounted || _showingAccepted) return;
+    if (ModalRoute.of(context)?.isCurrent != true) return;
     _accepted.value = const [];
+    _showingAccepted = true;
     final treats = names.length * Treats.friendAcceptedReward;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          names.length == 1
-              ? '${names.first} accepted your friend request! +$treats treats'
-              : '${names.length} friend requests accepted! +$treats treats',
-        ),
-      ),
+    await showInfoDialog(
+      context,
+      title: catCheer(),
+      message: names.length == 1
+          ? '${names.first} accepted your friend request. You\'re now '
+                'friends!'
+          : '${names.join(', ')} accepted your friend requests. You\'re '
+                'now friends!',
+      icon: Icons.favorite_rounded,
+      treats: treats,
+      celebrate: true,
     );
+    _showingAccepted = false;
+    _showWaiting();
   }
 
-  /// "2 friends joined with your code! +2 treats"
-  void _showFriendsJoined() {
+  /// Back on this screen (from a game, another page or a pop-up): show
+  /// anything that waited.
+  void _showWaiting() {
+    if (!mounted) return;
+    _showRequestsAccepted();
+    _showFriendsJoined();
+  }
+
+  bool _showingJoined = false;
+
+  /// "A friend joined with your code! +200 treats", as a pop-up with treat
+  /// confetti, on this screen only (it waits otherwise).
+  Future<void> _showFriendsJoined() async {
     final count = _friendsJoined.value;
-    if (count <= 0 || !mounted) return;
+    if (count <= 0 || !mounted || _showingJoined) return;
+    if (ModalRoute.of(context)?.isCurrent != true) return;
     _friendsJoined.value = 0;
-    final treats = count * Treats.friendJoinedReward;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          count == 1
-              ? 'A friend joined with your code! +$treats treats'
-              : '$count friends joined with your code! +$treats treats',
-        ),
-      ),
+    _showingJoined = true;
+    await showInfoDialog(
+      context,
+      title: catCheer(),
+      message: count == 1
+          ? 'A friend joined with your invite code and stacked their first '
+                '${Treats.referralMinLandings} cats!'
+          : '$count friends joined with your invite code and stacked '
+                'their first ${Treats.referralMinLandings} cats!',
+      icon: Icons.card_giftcard_rounded,
+      treats: count * Treats.friendJoinedReward,
+      celebrate: true,
     );
+    _showingJoined = false;
+    _showWaiting();
   }
 
   void _maybeShowDaily() {
@@ -147,7 +178,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     // Only over this screen, not over the game or another page.
     if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
     _dailyShownThisLaunch = true;
-    showDailyRewardDialog(context, data.daily);
+    showDailyRewardDialog(context, data.daily).then((_) => _showWaiting());
   }
 
   final _catsKey = GlobalKey<_MenuCatsState>();
@@ -158,12 +189,14 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     // Back from the game: switch to menu music again.
     AudioManager.instance.playMusic(Music.menu);
     _catsKey.currentState?.playIntro();
+    _showWaiting();
   }
 
   Future<void> _open(Widget screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
     // Back on the menu: the cats stack themselves up again.
     _catsKey.currentState?.playIntro();
+    _showWaiting();
   }
 
   @override

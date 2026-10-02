@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/info_dialog.dart';
 import '../auth/auth_service.dart';
 import '../economy/treats.dart';
 import '../services/friends_service.dart';
@@ -252,31 +253,47 @@ class _AddFriendButtonState extends State<_AddFriendButton> {
 
   Future<void> _add() async {
     setState(() => _busy = true);
-    final messenger = ScaffoldMessenger.of(context);
     final name = widget.entry.name;
     try {
       final result = await _friends.sendRequest(widget.entry.uid);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(switch (result) {
-            RequestResult.sent =>
-              "Friend request sent! You'll both get "
-                  '${Treats.friendAcceptedReward} treats when $name accepts.',
-            RequestResult.accepted =>
-              'You and $name are now friends! '
-                  '+${Treats.friendAcceptedReward} treats',
-            RequestResult.alreadySent => 'Waiting for $name to accept.',
-            RequestResult.alreadyFriends => "You're already friends.",
-          }),
+      if (!mounted) return;
+      final (title, message) = switch (result) {
+        RequestResult.sent => (
+          'Friend request sent!',
+          "You'll both get ${Treats.friendAcceptedReward} treats when "
+              '$name accepts.',
         ),
+        RequestResult.accepted => (
+          catCheer(),
+          'You and $name are now friends!',
+        ),
+        RequestResult.alreadySent => (
+          'Request already sent',
+          'Waiting for $name to accept.',
+        ),
+        RequestResult.alreadyFriends => (
+          'Already friends',
+          'You and $name are already friends.',
+        ),
+      };
+      await showInfoDialog(
+        context,
+        title: title,
+        message: message,
+        treats: result == RequestResult.accepted
+            ? Treats.friendAcceptedReward
+            : null,
       );
     } catch (e) {
       debugPrint('Friend request failed: $e');
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text("Couldn't send the request. Check your connection."),
-        ),
-      );
+      if (mounted) {
+        await showInfoDialog(
+          context,
+          title: "Couldn't send the request",
+          message: 'Check your connection and try again.',
+          icon: Icons.wifi_off_rounded,
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
