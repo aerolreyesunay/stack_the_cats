@@ -809,6 +809,9 @@ class _RealignDialog extends StatelessWidget {
         final short = Treats.realignCost - treats;
         final adReady = AdService.instance.rewardedReady.value;
         void pick(PayWith how) => Navigator.of(context).pop(how);
+        final canUseTreats = short <= 0 && uses.canUse(PayWith.treats);
+        final canUseTuna = tuna > 0 && uses.canUse(PayWith.fish);
+        final canUseAd = adReady && uses.canUse(PayWith.ad);
 
         // "2 left this game", plus an optional note in front.
         Widget usesLeft(PayWith how, {String? note}) => Padding(
@@ -842,60 +845,72 @@ class _RealignDialog extends StatelessWidget {
                 style: TextStyle(color: _muted),
               ),
               const SizedBox(height: 16),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: treatColor,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: short <= 0 && uses.canUse(PayWith.treats)
-                    ? () => pick(PayWith.treats)
-                    : null,
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Use ', style: TextStyle(fontSize: 16)),
-                    TreatAmount(Treats.realignCost, color: Colors.white),
-                  ],
+              // Options that can't be used stay visible but greyed out.
+              GreyedOut(
+                enabled: canUseTreats,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: treatColor,
+                    disabledBackgroundColor: treatColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: canUseTreats ? () => pick(PayWith.treats) : null,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Use ',
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                      TreatAmount(Treats.realignCost, color: Colors.white),
+                    ],
+                  ),
                 ),
               ),
               usesLeft(
                 PayWith.treats,
                 note: short > 0 ? 'You need $short more treats' : null,
               ),
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _brown,
-                  side: const BorderSide(color: treatColor, width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: tuna > 0 && uses.canUse(PayWith.fish)
-                    ? () => pick(PayWith.fish)
-                    : null,
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Use ', style: TextStyle(fontSize: 16)),
-                    FishAmount(Fish.tuna, 1),
-                  ],
+              GreyedOut(
+                enabled: canUseTuna,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _brown,
+                    disabledForegroundColor: _brown,
+                    side: const BorderSide(color: treatColor, width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: canUseTuna ? () => pick(PayWith.fish) : null,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Use ', style: TextStyle(fontSize: 16)),
+                      FishAmount(Fish.tuna, 1),
+                    ],
+                  ),
                 ),
               ),
               usesLeft(PayWith.fish, note: 'You have $tuna Tuna'),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _brown,
-                  side: const BorderSide(color: treatColor, width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: adReady && uses.canUse(PayWith.ad)
-                    ? () => pick(PayWith.ad)
-                    : null,
-                icon: const Icon(
-                  Icons.smart_display_rounded,
-                  color: treatColor,
-                ),
-                label: Text(
-                  adReady ? 'Watch an ad (free)' : 'No ad available right now',
-                  style: const TextStyle(fontSize: 16),
+              GreyedOut(
+                enabled: canUseAd,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _brown,
+                    disabledForegroundColor: _brown,
+                    side: const BorderSide(color: treatColor, width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: canUseAd ? () => pick(PayWith.ad) : null,
+                  icon: const Icon(
+                    Icons.smart_display_rounded,
+                    color: treatColor,
+                  ),
+                  label: Text(
+                    adReady
+                        ? 'Watch an ad (free)'
+                        : 'No ad available right now',
+                    style: const TextStyle(fontSize: 16),
+                  ),
                 ),
               ),
               usesLeft(PayWith.ad),

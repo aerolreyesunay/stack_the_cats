@@ -944,15 +944,17 @@ class StackGame extends FlameGame {
         ? const Color(0xFFE09B2D)
         : const Color(0xFFD64933);
     final wobbly = b.percent < 50 && b.side != 0;
+    // Compact, so that on a short tower it sits on the floor below the
+    // cushion rather than over the cats.
     const width = 260.0;
-    final height = wobbly ? 72.0 : 54.0;
+    final height = wobbly ? 60.0 : 44.0;
     final rect = Rect.fromCenter(
-      center: Offset(size.x / 2, size.y - 16 - height / 2),
+      center: Offset(size.x / 2, size.y - 8 - height / 2),
       width: width,
       height: height,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(16)),
+      RRect.fromRectAndRadius(rect, const Radius.circular(14)),
       Paint()..color = const Color(0xE6FFFFFF),
     );
 
@@ -963,16 +965,16 @@ class StackGame extends FlameGame {
       _ => '',
     };
     TextPaint(
-      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color),
+      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color),
     ).render(
       canvas,
       'Stability ${b.percent}%$lean',
-      Vector2(rect.center.dx, rect.top + 8),
+      Vector2(rect.center.dx, rect.top + 5),
       anchor: Anchor.topCenter,
     );
 
     // The gauge: a track with the middle marked and the needle at the lean.
-    final trackY = rect.top + 34;
+    final trackY = rect.top + 30;
     const trackHalf = 100.0;
     final cx = rect.center.dx;
     canvas.drawRRect(
@@ -988,7 +990,7 @@ class StackGame extends FlameGame {
     );
     canvas.drawCircle(
       Offset(cx + _shownTilt.clamp(-1.0, 1.0) * trackHalf, trackY),
-      7,
+      6,
       Paint()..color = color,
     );
 
@@ -996,16 +998,16 @@ class StackGame extends FlameGame {
     if (wobbly) {
       TextPaint(
         style: const TextStyle(
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
           color: Color(0xFF5B3A29),
         ),
       ).render(
         canvas,
         b.side > 0
-            ? '◀  Land the next cat on the left'
-            : 'Land the next cat on the right  ▶',
-        Vector2(cx, trackY + 12),
+            ? '←  Land the next cat on the left'
+            : 'Land the next cat on the right  →',
+        Vector2(cx, trackY + 9),
         anchor: Anchor.topCenter,
       );
     }

@@ -241,3 +241,28 @@ class _SalmonPainter extends CustomPainter {
   @override
   bool shouldRepaint(_SalmonPainter old) => false;
 }
+
+/// Shows [child] in faded greys when [enabled] is false, so an option that
+/// can't be used (used up, or not enough treats) clearly looks it.
+class GreyedOut extends StatelessWidget {
+  const GreyedOut({super.key, required this.enabled, required this.child});
+
+  final bool enabled;
+  final Widget child;
+
+  static const _greyscale = ColorFilter.matrix([
+    0.2126, 0.7152, 0.0722, 0, 0, //
+    0.2126, 0.7152, 0.0722, 0, 0, //
+    0.2126, 0.7152, 0.0722, 0, 0, //
+    0, 0, 0, 1, 0,
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    if (enabled) return child;
+    return Opacity(
+      opacity: 0.45,
+      child: ColorFiltered(colorFilter: _greyscale, child: child),
+    );
+  }
+}

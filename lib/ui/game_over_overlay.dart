@@ -149,7 +149,8 @@ class _GameOverOverlayState extends State<GameOverOverlay> {
   }
 
   /// Revive with treats or a Salmon (signed in), or for watching an ad.
-  /// Each way can be used a few times per game (see [PayWith]).
+  /// Each way can be used a few times per game (see [PayWith]). Options
+  /// that can't be used right now stay visible but greyed out, saying why.
   Widget _reviveOptions() {
     return ListenableBuilder(
       listenable: Listenable.merge([
@@ -160,17 +161,6 @@ class _GameOverOverlayState extends State<GameOverOverlay> {
         final game = widget.game;
         final uses = game.revives;
         final player = PlayerService.instance.player.value;
-        final adReady =
-            AdService.instance.rewardedReady.value && uses.canUse(PayWith.ad);
-        if (player == null && !adReady) {
-          return const Padding(
-            padding: EdgeInsets.only(bottom: 14),
-            child: Text(
-              'Sign in to earn treats and revive',
-              style: TextStyle(fontSize: 14, color: _muted),
-            ),
-          );
-        }
         if (_reviving) {
           return const Padding(
             padding: EdgeInsets.only(bottom: 14),
@@ -185,6 +175,24 @@ class _GameOverOverlayState extends State<GameOverOverlay> {
         final cost = Treats.reviveCostFor(game.score);
         final short = player == null ? 0 : cost - player.treats;
         final salmon = player?.salmon ?? 0;
+        final adReady = AdService.instance.rewardedReady.value;
+
+        /// Why an option can't be used, or null if it can.
+        String? blocked(PayWith how, {required String? otherwise}) =>
+            uses.canUse(how) ? otherwise : 'Used up';
+
+        final treatsBlock = blocked(
+          PayWith.treats,
+          otherwise: short > 0 ? 'Need $short more' : null,
+        );
+        final salmonBlock = blocked(
+          PayWith.fish,
+          otherwise: salmon <= 0 ? 'No Salmon' : null,
+        );
+        final adBlock = blocked(
+          PayWith.ad,
+          otherwise: adReady ? null : 'No video yet',
+        );
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Column(
@@ -194,46 +202,43 @@ class _GameOverOverlayState extends State<GameOverOverlay> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  if (player != null && uses.canUse(PayWith.treats))
+                  if (player != null) ...[
                     _OptionButton(
-                      onPressed: short <= 0
+                      onPressed: treatsBlock == null
                           ? () => _revive(PayWith.treats)
                           : null,
                       label: 'Revive',
                       trailing: TreatAmount(cost),
-                      left: uses.left(PayWith.treats),
+                      note: treatsBlock ?? '${uses.left(PayWith.treats)} left',
                     ),
-                  if (player != null && uses.canUse(PayWith.fish))
                     _OptionButton(
-                      onPressed: salmon > 0
+                      onPressed: salmonBlock == null
                           ? () => _revive(PayWith.fish)
                           : null,
                       label: 'Revive',
                       trailing: const FishAmount(Fish.salmon, 1),
-                      left: uses.left(PayWith.fish),
+                      note: salmonBlock ?? '${uses.left(PayWith.fish)} left',
                     ),
-                  if (adReady)
-                    _OptionButton(
-                      onPressed: () => _revive(PayWith.ad),
-                      label: 'Free revive',
-                      trailing: const Icon(
-                        Icons.smart_display_rounded,
-                        color: treatColor,
-                      ),
-                      left: uses.left(PayWith.ad),
+                  ],
+                  _OptionButton(
+                    onPressed: adBlock == null
+                        ? () => _revive(PayWith.ad)
+                        : null,
+                    label: 'Free revive',
+                    trailing: const Icon(
+                      Icons.smart_display_rounded,
+                      color: treatColor,
                     ),
+                    note: adBlock ?? '${uses.left(PayWith.ad)} left',
+                  ),
                 ],
               ),
-              if (player != null &&
-                  short > 0 &&
-                  salmon == 0 &&
-                  !adReady &&
-                  uses.canUse(PayWith.treats))
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
+              if (player == null)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
                   child: Text(
-                    '$short more treats needed',
-                    style: const TextStyle(fontSize: 13, color: _muted),
+                    'Sign in to revive with treats or Salmon',
+                    style: TextStyle(fontSize: 13, color: _muted),
                   ),
                 ),
             ],
@@ -249,40 +254,43 @@ class _OptionButton extends StatelessWidget {
     required this.onPressed,
     required this.label,
     required this.trailing,
-    required this.left,
+    required this.note,
   });
 
+  /// Null greys the option out.
   final VoidCallback? onPressed;
   final String label;
   final Widget trailing;
 
-  /// Uses of this option left this game.
-  final int left;
+  /// "2 left", or why it can't be used ("Used up", "Need 40 more").
+  final String note;
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: _brown,
-        side: const BorderSide(color: treatColor, width: 1.5),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      ),
-      onPressed: onPressed,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(width: 8),
-          trailing,
-          const SizedBox(width: 6),
-          Text(
-            '$left left',
-            style: const TextStyle(fontSize: 11, color: _muted),
-          ),
-        ],
+    final enabled = onPressed != null;
+    return GreyedOut(
+      enabled: enabled,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _brown,
+          disabledForegroundColor: _brown,
+          side: const BorderSide(color: treatColor, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        ),
+        onPressed: onPressed,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: 8),
+            trailing,
+            const SizedBox(width: 6),
+            Text(note, style: const TextStyle(fontSize: 11, color: _muted)),
+          ],
+        ),
       ),
     );
   }
