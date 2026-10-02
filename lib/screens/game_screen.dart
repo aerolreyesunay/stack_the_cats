@@ -153,6 +153,8 @@ class _GameScreenState extends State<GameScreen> {
     AudioManager.instance.playMusic(Music.game);
     // Friends see "Playing" and can't challenge mid-run.
     ChallengeService.instance.setPlaying(true);
+    // If ads couldn't start earlier (e.g. no connection yet), try again.
+    AdService.instance.start();
   }
 
   @override

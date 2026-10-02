@@ -40,9 +40,20 @@ class AdService {
 
   bool get _online => ConnectivityService.instance.isOnline;
 
+  bool _retryOnReconnect = false;
+
   /// Asks for consent where the law requires it (e.g. Europe), then starts
-  /// the ads SDK and preloads ads. Safe to call more than once.
+  /// the ads SDK and preloads ads. Safe to call more than once: if it
+  /// couldn't start (e.g. the phone wasn't online yet), calling it again
+  /// tries again. It also tries again by itself when the phone comes back
+  /// online.
   Future<void> start() async {
+    if (!_retryOnReconnect) {
+      _retryOnReconnect = true;
+      ConnectivityService.instance.online.addListener(() {
+        if (_online) start();
+      });
+    }
     if (ready.value || _starting) return;
     _starting = true;
     try {
