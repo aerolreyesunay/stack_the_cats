@@ -1,0 +1,22 @@
+{
+  "name": "stack-the-cats-functions",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && cd .. && firebase emulators:exec --only auth,functions,firestore,database \"node --test --test-force-exit functions/test/api.test.mjs\"",
+    "serve": "npm run build && firebase emulators:start",
+    "deploy": "cd .. && firebase deploy --only functions,firestore:rules,database"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

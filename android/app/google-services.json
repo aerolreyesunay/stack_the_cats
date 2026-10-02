@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "518572323752",
+    "project_id": "stack-the-cats-9538a",
+    "storage_bucket": "stack-the-cats-9538a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:518572323752:android:5922cde96c1e4035d3e39d",
+        "android_client_info": {
+          "package_name": "com.jcanstudios.stackthecats"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "518572323752-q3m4p6s6pp0armi3nv3rrpnh6rkr570b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jcanstudios.stackthecats",
+            "certificate_hash": "bad8476e507d40d4fecdd5ef879630fdbeeafe23"
+          }
+        },
+        {
+          "client_id": "518572323752-thl7si6vu0rmrvfcgumoien5tf5d1tmb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAD6J3iL7fdzgpdZgsYOsdLYvw_8dN0wuw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "518572323752-thl7si6vu0rmrvfcgumoien5tf5d1tmb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

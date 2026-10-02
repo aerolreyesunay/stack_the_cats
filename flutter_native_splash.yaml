@@ -1,0 +1,14 @@
+# Android's launch screen, shown for a moment before Flutter starts.
+# The logo and progress bar are drawn by lib/screens/loading_screen.dart.
+# Run: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#0E0F1A"
+  android: true
+  ios: false
+  web: false
+
+  # Android 12+ always shows an icon in a small circle, which would crop the
+  # wide logo, so it gets a transparent one and shows only the dark background.
+  android_12:
+    color: "#0E0F1A"
+    image: assets/branding/splash_blank.png

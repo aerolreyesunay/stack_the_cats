@@ -1,0 +1,163 @@
+rules_version = '2';
+
+// Paste into Firebase console -> Firestore Database -> Rules -> Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedInAs(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // A player's wallet, Store items and daily streak. Only the player can
+    // see it. Treats, Tuna, Salmon, Store items and reward counters are
+    // changed only by the server (Cloud Functions); the app may only change
+    // its profile, wallpaper choice and invite details.
+    match /users/{uid} {
+      allow read: if signedInAs(uid);
+
+      // New players start with the welcome bonus (Treats.welcomeBonus).
+      allow create: if signedInAs(uid)
+        && request.resource.data.keys().hasOnly(
+             ['displayName', 'photoUrl', 'updatedAt', 'treats', 'dailyDay',
+              'dailyLastClaim', 'createdAt'])
+        && request.resource.data.treats == 300
+        && request.resource.data.dailyDay == 0
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if signedInAs(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+             ['displayName', 'photoUrl', 'updatedAt', 'wallpaper',
+              'wallpaperRandom', 'inviteCode', 'invitedBy'])
+        // Only a wallpaper the player owns.
+        && (!('wallpaper' in request.resource.data)
+            || request.resource.data.wallpaper == 'classic'
+            || request.resource.data.wallpaper in resource.data.get('ownedWallpapers', []))
+        && (!('wallpaperRandom' in request.resource.data)
+            || request.resource.data.wallpaperRandom is bool)
+        // The invite code and who invited you can only be set once.
+        && (!('inviteCode' in resource.data)
+            || request.resource.data.inviteCode == resource.data.inviteCode)
+        && (!('invitedBy' in resource.data)
+            || request.resource.data.invitedBy == resource.data.invitedBy);
+
+      allow delete: if false;
+    }
+
+    // Server only: games in progress, wager stakes and match results.
+    match /games/{id} {
+      allow read, write: if false;
+    }
+    match /stakes/{id} {
+      allow read, write: if false;
+    }
+    match /settlements/{id} {
+      allow read, write: if false;
+    }
+
+    // Leaderboards are written only by the server, from the cats it counted
+    // in each game. Anyone can look, even signed-out players.
+    match /scores/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // One leaderboard per week, e.g. weekly/2026-W40/scores/{uid}.
+    match /weekly/{week}/scores/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ---------- Friends and invites ----------
+
+    // Public name, photo and invite code, for friends lists.
+    match /profiles/{uid} {
+      allow read: if request.auth != null;
+      allow write: if signedInAs(uid)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 60;
+    }
+
+    // Which player owns an invite code. Codes can be looked up one at a time
+    // but never listed, and never handed to someone else.
+    match /inviteCodes/{code} {
+      allow get: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid']);
+      allow update, delete: if false;
+    }
+
+    // A request to be friends, id "fromUid_toUid". Either player can remove
+    // it (cancel, decline, or accept).
+    match /friendRequests/{id} {
+      allow read: if request.auth != null
+        && (request.auth.uid == resource.data.from
+            || request.auth.uid == resource.data.to);
+      allow create: if request.auth != null
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string
+        && request.resource.data.to != request.auth.uid
+        && id == request.resource.data.from + '_' + request.resource.data.to
+        && request.resource.data.fromName is string
+        && request.resource.data.fromName.size() <= 60;
+      allow delete: if request.auth != null
+        && (request.auth.uid == resource.data.from
+            || request.auth.uid == resource.data.to);
+      allow update: if false;
+    }
+
+    // One document per pair of friends, id "uidA_uidB" with the uids sorted.
+    match /friendships/{pair} {
+      function validPair(d) {
+        return d.members is list
+          && d.members.size() == 2
+          && request.auth.uid in d.members
+          && d.members[0] < d.members[1]
+          && pair == d.members[0] + '_' + d.members[1];
+      }
+      function otherMember(d) {
+        return d.members[0] == request.auth.uid ? d.members[1] : d.members[0];
+      }
+
+      // (resource is null when checking whether a friendship exists yet.)
+      allow get: if request.auth != null
+        && (resource == null || request.auth.uid in resource.data.members);
+      allow list: if request.auth != null
+        && request.auth.uid in resource.data.members;
+
+      // Through an invite code: no bonus. Through an accepted request: the
+      // other player must really have asked. Both bonuses are then paid by
+      // the server (claimFriendBonuses).
+      allow create: if request.auth != null
+        && validPair(request.resource.data)
+        && (!('friendBonus' in request.resource.data)
+            || (request.resource.data.friendBonus == true
+                && exists(/databases/$(database)/documents/friendRequests/$(otherMember(request.resource.data) + '_' + request.auth.uid))
+                && request.resource.data.rewardsClaimed == []));
+
+      // Bonuses are marked claimed by the server only.
+      allow update: if false;
+
+      allow delete: if request.auth != null
+        && request.auth.uid in resource.data.members;
+    }
+
+    // A new player who joined with someone's code. Only genuinely new
+    // accounts (under 7 days old) can create one, naming the code's real
+    // owner; the server pays the owner once.
+    match /referrals/{joiner} {
+      allow read: if request.auth != null
+        && (request.auth.uid == joiner
+            || request.auth.uid == resource.data.referrer);
+      allow create: if signedInAs(joiner)
+        && request.resource.data.referrer != joiner
+        && request.resource.data.claimed == false
+        && get(/databases/$(database)/documents/inviteCodes/$(request.resource.data.code)).data.uid
+             == request.resource.data.referrer
+        && get(/databases/$(database)/documents/users/$(joiner)).data.createdAt
+             > request.time - duration.value(7, 'd');
+      // Claimed (and paid) by the server only.
+      allow update, delete: if false;
+    }
+  }
+}
