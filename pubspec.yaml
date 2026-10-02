@@ -49,6 +49,7 @@ dependencies:
   google_mobile_ads: ^9.1.0
   cloud_functions: ^6.5.0
   firebase_app_check: ^0.4.8
+  flutter_facebook_auth: ^7.2.0
 
 dev_dependencies:
   flutter_test:

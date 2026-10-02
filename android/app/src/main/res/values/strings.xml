@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Facebook sign-in (developers.facebook.com, app "Stack the Cats"). -->
+    <string name="facebook_app_id">1091984803236566</string>
+    <string name="fb_login_protocol_scheme">fb1091984803236566</string>
+    <string name="facebook_client_token">b4074c1c91b7e5b7902c1037c5b256a7</string>
+</resources>

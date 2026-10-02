@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 /// One place that signs players in and out and knows who is signed in.
@@ -42,8 +43,37 @@ class AuthService {
     return result.user;
   }
 
+  /// Facebook's login (its app, or a web page) and signs into Firebase
+  /// with the result. Returns null if the player cancelled.
+  ///
+  /// If the player's email is already used by their Google sign-in, this
+  /// throws [FirebaseAuthException] 'account-exists-with-different-credential'
+  /// (one account per email): they should sign in with Google instead.
+  Future<User?> signInWithFacebook() async {
+    final login = await FacebookAuth.instance.login(
+      permissions: const ['public_profile', 'email'],
+    );
+    switch (login.status) {
+      case LoginStatus.success:
+        final token = login.accessToken!.tokenString;
+        final result = await _auth.signInWithCredential(
+          FacebookAuthProvider.credential(token),
+        );
+        return result.user;
+      case LoginStatus.cancelled:
+        return null;
+      default:
+        throw StateError('Facebook login failed: ${login.message}');
+    }
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
+    try {
+      await FacebookAuth.instance.logOut();
+    } catch (e) {
+      debugPrint('Facebook sign-out failed: $e');
+    }
     try {
       await _initGoogle();
       // Without this, the next sign-in would reuse the same Google account

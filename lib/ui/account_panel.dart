@@ -8,7 +8,8 @@ import 'brand_logos.dart';
 const _brown = Color(0xFF5B3A29);
 const _muted = Color(0xFF8A6A55);
 
-/// Signed out: Google, Apple and Facebook logo buttons.
+/// Signed out: Google and Facebook logo buttons. (Apple comes back once
+/// the app has an Apple Developer account.)
 /// Signed in: who is signed in, and a Sign out link.
 ///
 /// Players only sign in once: Firebase remembers them, so the app signs
@@ -41,16 +42,32 @@ class _AccountPanelState extends State<AccountPanel> {
   }
 
   void _signIn(String provider) {
-    if (provider != 'Google') {
+    final signIn = switch (provider) {
+      'Google' => _auth.signInWithGoogle,
+      'Facebook' => _auth.signInWithFacebook,
+      _ => null,
+    };
+    if (signIn == null) {
       _showMessage('$provider sign-in is coming soon!');
       return;
     }
     _run(() async {
-      final user = await _auth.signInWithGoogle();
-      if (user != null && mounted) {
-        _showMessage('Welcome, ${user.displayName ?? 'cat stacker'}!');
+      try {
+        final user = await signIn();
+        if (user != null && mounted) {
+          _showMessage('Welcome, ${user.displayName ?? 'cat stacker'}!');
+        }
+      } on FirebaseAuthException catch (e) {
+        // One account per email: this email already signs in another way.
+        if (e.code == 'account-exists-with-different-credential' && mounted) {
+          _showMessage(
+            'That email already has an account. Sign in with Google instead.',
+          );
+          return;
+        }
+        rethrow;
       }
-    }, "Couldn't sign in with Google. Check your connection and try again.");
+    }, "Couldn't sign in with $provider. Check your connection and try again.");
   }
 
   Future<void> _confirmSignOut() async {
@@ -125,7 +142,7 @@ class _AccountPanelState extends State<AccountPanel> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            for (final provider in ['Google', 'Apple', 'Facebook'])
+            for (final provider in ['Google', 'Facebook'])
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: _LogoButton(
@@ -171,7 +188,7 @@ class _AccountPanelState extends State<AccountPanel> {
         ),
         const SizedBox(width: 6),
         // Which account this is linked with.
-        const BrandLogo('Google', size: 16),
+        BrandLogo(_providerOf(user), size: 16),
         const SizedBox(width: 4),
         TextButton(
           onPressed: _confirmSignOut,
@@ -181,6 +198,14 @@ class _AccountPanelState extends State<AccountPanel> {
       ],
     );
   }
+}
+
+/// 'Google' or 'Facebook': how [user] signed in.
+String _providerOf(User user) {
+  final ids = user.providerData.map((p) => p.providerId);
+  if (ids.contains('facebook.com')) return 'Facebook';
+  if (ids.contains('apple.com')) return 'Apple';
+  return 'Google';
 }
 
 class _OfflineNotice extends StatelessWidget {
