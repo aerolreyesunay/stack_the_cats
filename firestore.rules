@@ -138,8 +138,14 @@ service cloud.firestore {
       // Bonuses are marked claimed by the server only.
       allow update: if false;
 
-      allow delete: if request.auth != null
-        && request.auth.uid in resource.data.members;
+      // No unfriending from the app (only in the Firebase console), so a
+      // friendship can't be ended and started again for another bonus.
+      allow delete: if false;
+    }
+
+    // Server only: which players were paid a pair's friend bonus.
+    match /friendBonusPaid/{pair} {
+      allow read, write: if false;
     }
 
     // A new player who joined with someone's code. Only genuinely new

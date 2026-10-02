@@ -374,6 +374,24 @@ describe('leaderboard and invites', () => {
     assert.equal((await p.wallet()).landingsTotal, 30);
   });
 
+  test('a pair of friends earns the bonus once, even if re-friended', async () => {
+    const a = await newPlayer(0);
+    const b = await newPlayer(0);
+    const pair = [a.uid, b.uid].sort();
+    const ref = db.doc(`friendships/${pair.join('_')}`);
+    const befriend = () =>
+      ref.set({ members: pair, friendBonus: true, rewardsClaimed: [], createdAt: new Date() });
+    await befriend();
+    assert.equal((await a.call('claimFriendBonuses')).friends.length, 1);
+    // Unfriended in the console, then friends again.
+    await ref.delete();
+    await befriend();
+    assert.equal((await a.call('claimFriendBonuses')).friends.length, 0);
+    assert.equal((await a.wallet()).treats, 5);
+    // The other player still gets their one bonus.
+    assert.equal((await b.call('claimFriendBonuses')).friends.length, 1);
+  });
+
   test('the inviter is paid only once the new player has stacked 100 cats', async () => {
     const inviter = await newPlayer(0);
     const joiner = await newPlayer(0);

@@ -506,16 +506,32 @@ const actions: Record<string, Handler> = {
     const query = db.collection('friendships').where('members', 'array-contains', uid);
     return walletOp(uid, opIdOf(data), async (tx) => {
       const all = await tx.get(query);
-      const unpaid = all.docs.filter((d) => {
+      const unclaimed = all.docs.filter((d) => {
         const f = d.data();
         return f.friendBonus === true && !(f.rewardsClaimed ?? []).includes(uid);
       });
+      // Each pair of players earns the bonus once, ever: unfriending (in
+      // the console) and becoming friends again pays nothing more.
+      const paidRecords = await Promise.all(
+        unclaimed.map((d) => tx.get(db.doc(`friendBonusPaid/${d.id}`))),
+      );
+      const paid = unclaimed.filter(
+        (_, i) => !((paidRecords[i].data()?.paidTo ?? []) as string[]).includes(uid),
+      );
       return {
-        wallet: { treats: unpaid.length * eco.friendAcceptedReward },
-        writes: (t) =>
-          unpaid.forEach((d) => t.update(d.ref, { rewardsClaimed: FieldValue.arrayUnion(uid) })),
+        wallet: { treats: paid.length * eco.friendAcceptedReward },
+        writes: (t) => {
+          unclaimed.forEach((d) => t.update(d.ref, { rewardsClaimed: FieldValue.arrayUnion(uid) }));
+          paid.forEach((d) =>
+            t.set(
+              db.doc(`friendBonusPaid/${d.id}`),
+              { paidTo: FieldValue.arrayUnion(uid) },
+              { merge: true },
+            ),
+          );
+        },
         result: {
-          friends: unpaid.map((d) => (d.data().members as string[]).find((m) => m !== uid)),
+          friends: paid.map((d) => (d.data().members as string[]).find((m) => m !== uid)),
         },
       };
     });
