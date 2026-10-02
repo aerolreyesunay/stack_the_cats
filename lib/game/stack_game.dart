@@ -306,6 +306,13 @@ class StackGame extends FlameGame {
   double get catH => catW * 0.58;
   double get groundY => size.y - 110; // top of the cushion, in tower coords
   double get baseX => size.x / 2;
+
+  /// Where the cushion is now: it sways from side to side in the Self
+  /// Challenge (carrying the tower), and stays in the middle otherwise.
+  double get platformX => baseX + platformOffset;
+  double platformOffset = 0;
+  double _swayPhase = 0;
+  double _swayAmplitude = 0;
   double get baseW => catW * 1.4;
   double get hangY => 120 + catH; // where new cats swing (screen coords)
 
@@ -324,7 +331,9 @@ class StackGame extends FlameGame {
   static const int swingStepCats = 20;
   static const int maxSpeedAtCats = 500;
 
-  double get swingSpeed => rules.isSelfChallenge
+  double get swingSpeed => _speedAt(score);
+
+  double _speedAt(int score) => rules.isSelfChallenge
       ? SelfChallenge.swingSpeedFor(score)
       : swingSpeedFor(score);
 
@@ -347,6 +356,7 @@ class StackGame extends FlameGame {
   /// "Speed increased!" shows for this long under the score, then fades.
   static const double _speedMessageTime = 1.4;
   double _speedMessageLeft = 0;
+  String _speedMessage = 'Speed increased!';
 
   final _hintPaint = TextPaint(
     style: const TextStyle(
@@ -419,6 +429,9 @@ class StackGame extends FlameGame {
     _beforeCollapse = const [];
     _realignFrom = null;
     _speedMessageLeft = 0;
+    platformOffset = 0;
+    _swayPhase = 0;
+    _swayAmplitude = 0;
     scroll = 0;
     scrollTarget = 0;
     phase = Phase.waiting;
@@ -521,6 +534,7 @@ class StackGame extends FlameGame {
     super.update(dt);
     final step = min(dt, 1 / 30); // avoid big jumps if the phone lags
     time += step;
+    _swayPlatform(step);
     scroll += (scrollTarget - scroll) * min(1.0, step * 5);
 
     final cat = active;
@@ -601,7 +615,7 @@ class StackGame extends FlameGame {
 
     balance = TowerBalance.of(
       [for (final c in tower) c.x],
-      baseX: baseX,
+      baseX: platformX,
       baseHalf: baseW / 2,
       catHalf: catW / 2,
     );
@@ -614,7 +628,7 @@ class StackGame extends FlameGame {
     final topSurfaceOnScreen = topSurface + scroll;
     if (cat.y + catH / 2 < topSurfaceOnScreen) return; // still in the air
 
-    final supportX = tower.isEmpty ? baseX : tower.last.x;
+    final supportX = tower.isEmpty ? platformX : tower.last.x;
     final supportHalf = tower.isEmpty ? baseW / 2 : catW / 2;
     final offset = cat.x - supportX;
 
@@ -668,7 +682,12 @@ class StackGame extends FlameGame {
 
     score++;
     onScore?.call(score);
-    if (swingSpeedFor(score) > swingSpeedFor(score - 1)) {
+    if (_speedAt(score) > _speedAt(score - 1)) {
+      _speedMessage = rules.isSelfChallenge && score == SelfChallenge.step
+          ? 'Faster! Watch the cushion!'
+          : rules.isSelfChallenge
+          ? 'Faster! The cushion sways more!'
+          : 'Speed increased!';
       _speedMessageLeft = _speedMessageTime;
     }
     var earned = 0;
@@ -739,11 +758,27 @@ class StackGame extends FlameGame {
       sum += tower[i].x;
       count++;
       final centerOfMass = sum / count;
-      final supportX = i == 0 ? baseX : tower[i - 1].x;
+      final supportX = i == 0 ? platformX : tower[i - 1].x;
       final half = i == 0 ? baseW / 2 : catW / 2;
       if ((centerOfMass - supportX).abs() > half) return false;
     }
     return true;
+  }
+
+  /// Self Challenge: the cushion drifts from side to side, more every 20
+  /// cats, and the tower rides on it. The size of the sway eases in, so it
+  /// never jumps.
+  void _swayPlatform(double step) {
+    if (!rules.isSelfChallenge || phase == Phase.over) return;
+    final sway = SelfChallenge.swayFor(score);
+    _swayAmplitude += (sway.amplitude - _swayAmplitude) * min(1.0, step * 1.5);
+    if (sway.period > 0) _swayPhase += 2 * pi / sway.period * step;
+    final next = _swayAmplitude * sin(_swayPhase);
+    final moved = next - platformOffset;
+    platformOffset = next;
+    for (final c in tower) {
+      c.x += moved;
+    }
   }
 
   /// The tower's balance right now, for the stability meter.
@@ -751,7 +786,7 @@ class StackGame extends FlameGame {
   double _shownTilt = 0;
 
   double _towerCenter() {
-    if (tower.isEmpty) return baseX;
+    if (tower.isEmpty) return platformX;
     return tower.map((c) => c.x).reduce((a, b) => a + b) / tower.length;
   }
 
@@ -761,7 +796,7 @@ class StackGame extends FlameGame {
       for (final c in tower.take(tower.length - 1))
         Cat(x: c.x, y: c.y, look: c.look),
     ];
-    var lean = (_towerCenter() - baseX).sign;
+    var lean = (_towerCenter() - platformX).sign;
     if (lean == 0) lean = 1;
     for (int i = 0; i < tower.length; i++) {
       final c = tower[i];
@@ -819,14 +854,14 @@ class StackGame extends FlameGame {
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(baseX - baseW / 2, floorTop, baseW, 32),
+        Rect.fromLTWH(platformX - baseW / 2, floorTop, baseW, 32),
         const Radius.circular(14),
       ),
       Paint()..color = const Color(0xFFE76F51),
     );
 
     // The tower sways more the more off-balance it is.
-    final lean = (_towerCenter() - baseX).abs() / catW;
+    final lean = (_towerCenter() - platformX).abs() / catW;
     final sway = sin(time * 2.4) * min(5.0, lean * 8);
     for (int i = 0; i < tower.length; i++) {
       final c = tower[i];
@@ -916,7 +951,7 @@ class StackGame extends FlameGame {
         ),
       ).render(
         canvas,
-        'Speed increased!',
+        _speedMessage,
         Vector2(size.x / 2, 114 - age * 8),
         anchor: Anchor.topCenter,
       );

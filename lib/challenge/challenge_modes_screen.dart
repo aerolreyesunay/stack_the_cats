@@ -103,7 +103,8 @@ class _ChallengeModesScreenState extends State<ChallengeModesScreen> {
       title: 'Self Challenge',
       subtitle:
           'Stack ${SelfChallenge.goal} cats with one tower. No revives or '
-          'realigns, and the cats speed up every 25.',
+          'realigns. Every ${SelfChallenge.step} cats the cats speed up '
+          'and the cushion sways more.',
       children: [
         const SizedBox(height: 10),
         _rewardLine('50 cats', const [Fish.tuna]),

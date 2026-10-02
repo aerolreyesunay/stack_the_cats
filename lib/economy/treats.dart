@@ -158,12 +158,19 @@ class SelfChallenge {
   static const cost = 25;
   static const goal = 100;
 
-  /// 300 up to 25 cats, 350 up to 50, 425 up to 75, then 500.
-  static double swingSpeedFor(int score) {
-    if (score < 25) return 300;
-    if (score < 50) return 350;
-    if (score < 75) return 425;
-    return 500;
+  /// Speeds and the cushion's sway step up every this many cats.
+  static const step = 20;
+
+  /// 340 for the first 20 cats, then 60 faster every 20 (580 from 80).
+  static double swingSpeedFor(int score) => 340.0 + 60 * min(score ~/ step, 4);
+
+  /// The cushion sways from 20 cats, a little wider and quicker every 20:
+  /// [amplitude] px each way, one full swing every [period] seconds. Kept
+  /// gentle (at most about 55 px, 3.4 s).
+  static ({double amplitude, double period}) swayFor(int score) {
+    final level = min(score ~/ step, 4);
+    if (level == 0) return (amplitude: 0, period: 0);
+    return (amplitude: 14.0 + 10 * level, period: 5.0 - 0.4 * level);
   }
 
   /// What a run that reached [score] cats wins: 50-74 a Tuna, 75-99 a

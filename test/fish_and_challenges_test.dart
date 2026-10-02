@@ -43,15 +43,25 @@ void main() {
   });
 
   group('SelfChallenge', () {
-    test('speeds: 300, 350, 425, then 500', () {
-      expect(SelfChallenge.swingSpeedFor(0), 300);
-      expect(SelfChallenge.swingSpeedFor(24), 300);
-      expect(SelfChallenge.swingSpeedFor(25), 350);
-      expect(SelfChallenge.swingSpeedFor(49), 350);
-      expect(SelfChallenge.swingSpeedFor(50), 425);
-      expect(SelfChallenge.swingSpeedFor(74), 425);
-      expect(SelfChallenge.swingSpeedFor(75), 500);
-      expect(SelfChallenge.swingSpeedFor(100), 500);
+    test('speeds step up every 20 cats: 340 to 580', () {
+      expect(SelfChallenge.swingSpeedFor(0), 340);
+      expect(SelfChallenge.swingSpeedFor(19), 340);
+      expect(SelfChallenge.swingSpeedFor(20), 400);
+      expect(SelfChallenge.swingSpeedFor(40), 460);
+      expect(SelfChallenge.swingSpeedFor(60), 520);
+      expect(SelfChallenge.swingSpeedFor(80), 580);
+      expect(SelfChallenge.swingSpeedFor(100), 580);
+    });
+
+    test('the cushion sways from 20 cats, gently', () {
+      expect(SelfChallenge.swayFor(19).amplitude, 0);
+      final first = SelfChallenge.swayFor(20);
+      final last = SelfChallenge.swayFor(99);
+      expect(first.amplitude, greaterThan(0));
+      expect(last.amplitude, greaterThan(first.amplitude));
+      expect(last.period, lessThan(first.period));
+      // Never fast: a full swing takes at least 3 seconds.
+      expect(last.period, greaterThanOrEqualTo(3));
     });
 
     test('rewards by cats reached', () {
