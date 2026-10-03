@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../audio/audio_manager.dart';
+import '../auth/auth_service.dart';
+import '../services/age_gate.dart';
 import '../services/player_service.dart';
 import '../store/wallpapers.dart';
 
-/// Sound, and (once bought) which wallpaper to use. Choices are saved.
+/// The privacy policy and account deletion pages (Google Play requires
+/// links to both in the app).
+const _privacyUrl = 'https://jcanstudios.github.io/stack-the-cats/privacy.html';
+const _deleteUrl =
+    'https://jcanstudios.github.io/stack-the-cats/delete-data.html';
+const _links = MethodChannel('stack_the_cats/links');
+
+/// Sound, (once bought) which wallpaper to use, and privacy links. Choices
+/// are saved.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -61,9 +72,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
               return _WallpaperSettings(player: player);
             },
           ),
+          const SizedBox(height: 16),
+          // Kids' mode: the made-up name and account ID, so a parent can ask
+          // us to delete the account.
+          if (AgeGate.instance.isKid &&
+              AuthService.instance.currentUser != null) ...[
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.pets_rounded),
+                title: Text(
+                  KidName.forUid(AuthService.instance.currentUser!.uid),
+                ),
+                subtitle: SelectableText(
+                  'Player ID: ${AuthService.instance.currentUser!.uid}',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.privacy_tip_outlined),
+                  title: const Text('Privacy policy'),
+                  trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                  onTap: () => _open(_privacyUrl),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline_rounded),
+                  title: const Text('Delete account'),
+                  subtitle: const Text(
+                    'Ask us to delete your account and its data',
+                  ),
+                  trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                  onTap: () => _open(_deleteUrl),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  /// Opens [url] in the browser (MainActivity.kt does it on Android).
+  Future<void> _open(String url) async {
+    final opened = await _links
+        .invokeMethod<bool>('open', url)
+        .catchError((Object _) => false);
+    if (opened != true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Couldn't open the browser. Visit $url")),
+      );
+    }
   }
 }
 

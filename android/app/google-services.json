@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "518572323752",
+    "firebase_url": "https://stack-the-cats-9538a-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "stack-the-cats-9538a",
     "storage_bucket": "stack-the-cats-9538a.firebasestorage.app"
   },
@@ -13,6 +14,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "518572323752-75bsa53ukbb52avdie6tb1m0j4pg4lub.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jcanstudios.stackthecats",
+            "certificate_hash": "f0161af7a605f1609a26d4a1b94b2a1341b6ab1f"
+          }
+        },
         {
           "client_id": "518572323752-q3m4p6s6pp0armi3nv3rrpnh6rkr570b.apps.googleusercontent.com",
           "client_type": 1,

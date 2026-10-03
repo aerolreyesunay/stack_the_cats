@@ -73,6 +73,11 @@
     <queries>
         <!-- So Facebook sign-in can use the Facebook app if it's installed. -->
         <package android:name="com.facebook.katana" />
+        <!-- So Settings can open the privacy and account deletion pages. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
