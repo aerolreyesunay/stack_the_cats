@@ -35,6 +35,7 @@ class RunRules {
     this.catSeed,
     this.isGuest = false,
     this.isSelfChallenge = false,
+    this.payoutBonus = false,
   });
 
   /// Signed in and online: treats and no limit.
@@ -59,6 +60,10 @@ class RunRules {
 
   /// Signed out or offline: capped, and no best score shown or saved.
   final bool isGuest;
+
+  /// Started with a premium wallpaper: double treats for a while every 50
+  /// cats (see [PayoutBonus]).
+  final bool payoutBonus;
   final bool isSelfChallenge;
 
   /// A live challenge: both players get the same cats (from [seed]), one
@@ -70,7 +75,8 @@ class RunRules {
       allowRealign = false,
       catSeed = seed,
       isGuest = false,
-      isSelfChallenge = false;
+      isSelfChallenge = false,
+      payoutBonus = false;
 
   final bool earnsTreats;
 
@@ -272,6 +278,12 @@ class StackGame extends FlameGame {
   int runTuna = 0;
   int runSalmon = 0;
 
+  /// Until when (ms of play) landings pay double treats. -1 = not now.
+  int _bonusUntilMs = -1;
+
+  bool get payoutBonusActive =>
+      rules.payoutBonus && phase != Phase.over && time * 1000 <= _bonusUntilMs;
+
   /// Revives and realigns used this run, per way of paying (each has its
   /// own limit, see [PayWith]).
   final revives = UseCounter();
@@ -354,6 +366,14 @@ class StackGame extends FlameGame {
     ),
   );
 
+  final _bonusPaint = TextPaint(
+    style: const TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w900,
+      color: Color(0xFFC08A1E),
+    ),
+  );
+
   /// "Speed increased!" shows for this long under the score, then fades.
   static const double _speedMessageTime = 1.4;
   double _speedMessageLeft = 0;
@@ -425,6 +445,7 @@ class StackGame extends FlameGame {
     runTreats = 0;
     runTuna = 0;
     runSalmon = 0;
+    _bonusUntilMs = -1;
     revives.reset();
     realigns.reset();
     _beforeCollapse = const [];
@@ -695,6 +716,8 @@ class StackGame extends FlameGame {
     }
     var earned = 0;
     Fish? fish;
+    final atMs = (time * 1000).round();
+    var doubled = false;
     if (earnsTreats) {
       // Store cats add a bonus to their own Purrfect landings.
       earned = Treats.forLanding(
@@ -702,6 +725,16 @@ class StackGame extends FlameGame {
         score: score,
         tier: cat.look.breed.tier,
       );
+      // Premium wallpaper: double treats in the window after every 50 cats.
+      if (earned > 0 && rules.payoutBonus && atMs <= _bonusUntilMs) {
+        earned *= PayoutBonus.multiplier;
+        doubled = true;
+      }
+      if (rules.payoutBonus && score % PayoutBonus.every == 0) {
+        _bonusUntilMs = atMs + PayoutBonus.seconds * 1000;
+        _speedMessage = '2× treats for ${PayoutBonus.seconds} seconds!';
+        _speedMessageLeft = _speedMessageTime;
+      }
       // Every 100 cats a Tuna, every 200 a Salmon (instead of treats).
       fish = Fish.forMilestone(score);
       // Within today's limit.
@@ -715,7 +748,11 @@ class StackGame extends FlameGame {
       }
       if (earned > 0) {
         runTreats += earned;
-        _popup('+$earned treats', cat.x, cat.y - catH * 1.7);
+        _popup(
+          doubled ? '+$earned treats (2×)' : '+$earned treats',
+          cat.x,
+          cat.y - catH * 1.7,
+        );
       }
       if (fish != null) {
         fish == Fish.tuna ? runTuna++ : runSalmon++;
@@ -726,7 +763,7 @@ class StackGame extends FlameGame {
     onLanded?.call(
       combo: combo,
       tier: cat.look.breed.tier,
-      atMs: (time * 1000).round(),
+      atMs: atMs,
       treats: earned,
       fish: fish,
     );
@@ -775,7 +812,11 @@ class StackGame extends FlameGame {
   /// steadies.
   void _swayPlatform(double step) {
     if (phase == Phase.over) return;
-    final sway = CushionSway.at(score, balance.stability);
+    final sway = CushionSway.at(
+      score,
+      balance.stability,
+      speed: rules.isGuest ? CushionSway.offlineSpeed : 1,
+    );
     final ease = min(1.0, step * 1.5);
     _swayAmplitude += (sway.amplitude - _swayAmplitude) * ease;
     final speed = sway.period > 0 ? 2 * pi / sway.period : 0.0;
@@ -934,15 +975,25 @@ class StackGame extends FlameGame {
       anchor: Anchor.topCenter,
     );
     // Guests (and the Self Challenge) see how many cats are left instead
-    // of their best.
-    _smallPaint.render(
-      canvas,
-      rules.maxScore != null
-          ? '$catsToGo ${catsToGo == 1 ? 'cat' : 'cats'} to go'
-          : 'Best $best',
-      Vector2(size.x / 2, 88),
-      anchor: Anchor.topCenter,
-    );
+    // of their best; double treats show there while they last.
+    if (payoutBonusActive) {
+      final left = ((_bonusUntilMs - time * 1000) / 1000).ceil();
+      _bonusPaint.render(
+        canvas,
+        '2× treats · ${left}s',
+        Vector2(size.x / 2, 86),
+        anchor: Anchor.topCenter,
+      );
+    } else {
+      _smallPaint.render(
+        canvas,
+        rules.maxScore != null
+            ? '$catsToGo ${catsToGo == 1 ? 'cat' : 'cats'} to go'
+            : 'Best $best',
+        Vector2(size.x / 2, 88),
+        anchor: Anchor.topCenter,
+      );
+    }
 
     // "Speed increased!" pops in under the score, drifts up a little and
     // fades out.

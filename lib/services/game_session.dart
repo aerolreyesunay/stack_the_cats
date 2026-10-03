@@ -39,13 +39,15 @@ class GameSession {
   final List<Map<String, Object>> _batch = [];
   String _batchOpId = ServerApi.newOpId();
 
-  /// Starts a normal game (in the background: nothing is paid).
-  static GameSession? startNormal() {
+  /// Starts a normal game (in the background: nothing is paid), with the
+  /// wallpaper it starts with (a premium one pays double treats at times).
+  static GameSession? startNormal(String wallpaperId) {
     if (!PlayerService.instance.signedIn) return null;
     final session = GameSession._(false);
     GameSession._enqueue(() async {
       final result = await session._player.run('startGame', {
         'mode': 'normal',
+        'wallpaperId': wallpaperId,
       }, quiet: true);
       session._gameId = result?['gameId'] as String?;
     });

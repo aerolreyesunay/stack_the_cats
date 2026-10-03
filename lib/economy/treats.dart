@@ -20,8 +20,17 @@ class Treats {
       reviveBaseCost + reviveCostPerExtraCat * max(0, score - reviveBaseCats);
 
   // ---------- Earning ----------
-  /// Daily sign-in rewards for day 1-7 of a streak.
-  static const dailyRewards = [10, 20, 30, 50, 75, 100, 200];
+  /// Daily sign-in rewards for day 1-7 of a streak: treats, then a Tuna on
+  /// day 6 and a Salmon on day 7. (The server keeps the same ones.)
+  static const dailyRewards = [
+    DailyReward(treats: 10),
+    DailyReward(treats: 20),
+    DailyReward(treats: 50),
+    DailyReward(treats: 100),
+    DailyReward(treats: 200),
+    DailyReward(fish: Fish.tuna),
+    DailyReward(fish: Fish.salmon),
+  ];
 
   /// After this many perfects in a row, every further perfect pays.
   static const perfectStreakStart = 3;
@@ -103,13 +112,11 @@ class Treats {
 
 /// The rarer currencies: a Tuna or a Salmon.
 enum Fish {
-  tuna(treatValue: 250, label: 'Tuna'),
-  salmon(treatValue: 375, label: 'Salmon');
+  tuna(label: 'Tuna'),
+  salmon(label: 'Salmon');
 
-  const Fish({required this.treatValue, required this.label});
+  const Fish({required this.label});
 
-  /// Treats given for one in the Store exchange.
-  final int treatValue;
   final String label;
 
   /// A Tuna every [tunaEvery] cats in a normal game, and a Salmon (instead
@@ -158,18 +165,39 @@ class CushionSway {
   /// It starts swaying once the tower has this many cats.
   static const startAt = 20;
 
+  /// Offline (and signed-out) games sway this many times faster.
+  static const offlineSpeed = 2.0;
+
   /// How it sways at [score] cats when the tower's stability is
   /// [stability] (1 = perfectly balanced, 0 = about to topple):
   /// [amplitude] px each way, one full swing every [period] seconds.
   /// Still before 20 cats. From then on a perfectly balanced tower only
   /// sways a little (6 px, 7 s per swing); the shakier it gets the wider
   /// and quicker it sways (up to 70 px, 3 s), and it calms down again as
-  /// the player steadies it.
-  static ({double amplitude, double period}) at(int score, double stability) {
+  /// the player steadies it. [speed] makes every swing that many times
+  /// quicker (see [offlineSpeed]).
+  static ({double amplitude, double period}) at(
+    int score,
+    double stability, {
+    double speed = 1,
+  }) {
     if (score < startAt) return (amplitude: 0, period: 0);
     final shaky = 1 - stability.clamp(0.0, 1.0);
-    return (amplitude: 6.0 + 64 * shaky, period: 7.0 - 4 * shaky);
+    return (amplitude: 6.0 + 64 * shaky, period: (7.0 - 4 * shaky) / speed);
   }
+}
+
+/// Premium wallpapers (see [Wallpaper.payoutBonus]): in a normal game
+/// started with one, every [every] cats stacked opens a window of [seconds]
+/// seconds of play in which landings pay [multiplier] times the treats.
+/// (Fish aren't doubled, and the daily limit still applies. The server
+/// keeps the same rule.)
+class PayoutBonus {
+  PayoutBonus._();
+
+  static const every = 50;
+  static const seconds = 20;
+  static const multiplier = 2;
 }
 
 /// The Self Challenge: reach [goal] cats with one tower and fixed speeds.
@@ -208,6 +236,16 @@ class MatchPrizes {
   static const wagers = [100, 200, 300, 500];
 }
 
+/// One day's sign-in reward: some treats, or one fish.
+class DailyReward {
+  const DailyReward({this.treats = 0, this.fish});
+
+  final int treats;
+  final Fish? fish;
+
+  String get label => fish == null ? '$treats treats' : 'a ${fish!.label}';
+}
+
 /// Where a player is in the 7-day sign-in streak.
 class DailyStatus {
   const DailyStatus({required this.day, required this.claimable});
@@ -216,7 +254,7 @@ class DailyStatus {
   final int day;
   final bool claimable;
 
-  int get reward => Treats.dailyRewards[day - 1];
+  DailyReward get reward => Treats.dailyRewards[day - 1];
 
   /// [lastClaim] is the local date of the last claim ('yyyy-mm-dd'), and
   /// [lastDay] the streak day claimed then. A missed day or finishing

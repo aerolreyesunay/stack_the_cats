@@ -16,15 +16,14 @@ const _accent = Color(0xFFE76F51);
 const _special = Color(0xFF3A8FB7);
 const _exotic = Color(0xFF9B59B6);
 
-/// Buy new cats and wallpapers with treats, and trade Tuna and Salmon
-/// for treats.
+/// Buy new cats and wallpapers with treats.
 class StoreScreen extends StatelessWidget {
   const StoreScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Store'),
@@ -40,7 +39,6 @@ class StoreScreen extends StatelessWidget {
             tabs: [
               Tab(text: 'Cats'),
               Tab(text: 'Wallpapers'),
-              Tab(text: 'Exchange'),
             ],
           ),
         ),
@@ -63,7 +61,6 @@ class StoreScreen extends StatelessWidget {
               children: [
                 _CatsTab(player: player),
                 _WallpapersTab(player: player),
-                _ExchangeTab(player: player),
               ],
             );
           },
@@ -79,6 +76,7 @@ Future<bool> _confirmBuy(
   required String name,
   required int price,
   required Widget preview,
+  String? note,
 }) async {
   final ok = await showDialog<bool>(
     context: context,
@@ -89,7 +87,20 @@ Future<bool> _confirmBuy(
         textAlign: TextAlign.center,
         style: const TextStyle(fontWeight: FontWeight.w900, color: _brown),
       ),
-      content: SizedBox(height: 110, child: Center(child: preview)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: 110, child: Center(child: preview)),
+          if (note != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              note,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _muted),
+            ),
+          ],
+        ],
+      ),
       actionsAlignment: MainAxisAlignment.center,
       actions: [
         TextButton(
@@ -226,6 +237,31 @@ class _CatsTab extends StatelessWidget {
     }
   }
 
+  /// Some cats can be unlocked with a few videos instead of treats.
+  Future<void> _watchAdFor(BuildContext context, CatBreed cat) async {
+    final earned = await AdService.instance.showRewarded();
+    if (!context.mounted) return;
+    if (!earned) {
+      _say(context, 'Watch the whole video for it to count.');
+      return;
+    }
+    final watched = await PlayerService.instance.watchedCatAd(cat);
+    if (watched == null || !context.mounted) return;
+    final needed = cat.tier.adVideos;
+    if (watched >= needed) {
+      AudioManager.instance.playSfx(Sfx.purrfect);
+      showTreatConfetti(context);
+      _say(context, '${cat.name} joined your cats! It can now drop in games.');
+    } else {
+      final left = needed - watched;
+      _say(
+        context,
+        '$watched of $needed videos watched. '
+        '$left more to unlock ${cat.name}!',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final sections = [CatTier.basic, CatTier.special, CatTier.exotic];
@@ -254,7 +290,9 @@ class _CatsTab extends StatelessWidget {
                 _CatCard(
                   cat: cat,
                   owned: player.ownsCat(cat),
+                  videosWatched: player.catAdsWatched(cat),
                   onBuy: () => _buy(context, cat),
+                  onWatchAd: () => _watchAdFor(context, cat),
                 ),
             ],
           ),
@@ -319,11 +357,19 @@ class _TierBadge extends StatelessWidget {
 }
 
 class _CatCard extends StatelessWidget {
-  const _CatCard({required this.cat, required this.owned, required this.onBuy});
+  const _CatCard({
+    required this.cat,
+    required this.owned,
+    required this.videosWatched,
+    required this.onBuy,
+    required this.onWatchAd,
+  });
 
   final CatBreed cat;
   final bool owned;
+  final int videosWatched;
   final VoidCallback onBuy;
+  final VoidCallback onWatchAd;
 
   @override
   Widget build(BuildContext context) {
@@ -356,15 +402,55 @@ class _CatCard extends StatelessWidget {
               ],
             )
           else
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: _accent,
-                  visualDensity: VisualDensity.compact,
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _accent,
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                    ),
+                    onPressed: onBuy,
+                    child: TreatAmount(
+                      cat.price,
+                      color: Colors.white,
+                      size: 15,
+                    ),
+                  ),
                 ),
-                onPressed: onBuy,
-                child: TreatAmount(cat.price, color: Colors.white, size: 15),
+                // Or unlock it with a few videos.
+                if (cat.adUnlockable) ...[
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: AdService.instance.rewardedReady,
+                      builder: (context, adReady, _) => OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _brown,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          side: const BorderSide(color: _accent),
+                        ),
+                        onPressed: adReady ? onWatchAd : null,
+                        icon: const Icon(
+                          Icons.smart_display_rounded,
+                          color: _accent,
+                          size: 18,
+                        ),
+                        label: Text('$videosWatched/${cat.tier.adVideos}'),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          if (!owned && cat.adUnlockable)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'or watch ${cat.tier.adVideos} videos',
+                style: const TextStyle(fontSize: 11, color: _muted),
               ),
             ),
         ],
@@ -436,11 +522,17 @@ class _WallpapersTab extends StatelessWidget {
       name: w.name,
       price: w.price,
       preview: SizedBox(width: 90, height: 110, child: _WallPreview(w)),
+      note: w.payoutBonus ? _bonusNote : null,
     );
     if (!ok || !context.mounted) return;
     if (service.buyWallpaper(w)) {
       AudioManager.instance.playSfx(Sfx.purrfect);
-      _say(context, '${w.name} is up on your wall!');
+      _say(
+        context,
+        w.payoutBonus
+            ? '${w.name} is up! Double treats start from your next game.'
+            : '${w.name} is up on your wall!',
+      );
     }
   }
 
@@ -457,6 +549,10 @@ class _WallpapersTab extends StatelessWidget {
       _say(context, '${w.name} is up on your wall!');
     }
   }
+
+  static const _bonusNote =
+      'Premium: in games started with it, every ${PayoutBonus.every} cats '
+      'you stack pays double treats for ${PayoutBonus.seconds} seconds.';
 
   @override
   Widget build(BuildContext context) {
@@ -510,9 +606,16 @@ class _WallCard extends StatelessWidget {
       child: Column(
         children: [
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: _WallPreview(wallpaper),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: _WallPreview(wallpaper),
+                ),
+                if (wallpaper.payoutBonus)
+                  const Positioned(top: 6, left: 6, child: _BonusBadge()),
+              ],
             ),
           ),
           const SizedBox(height: 8),
@@ -609,6 +712,30 @@ class _WallCard extends StatelessWidget {
   }
 }
 
+/// "2× treats" on a premium wallpaper.
+class _BonusBadge extends StatelessWidget {
+  const _BonusBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFC08A1E),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Text(
+        '2× treats',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
 class _WallPreview extends StatelessWidget {
   const _WallPreview(this.wallpaper);
   final Wallpaper wallpaper;
@@ -633,139 +760,4 @@ class _WallPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WallPainter old) => old.wallpaper != wallpaper;
-}
-
-// ---------- Exchange ----------
-
-/// Trade a Tuna or a Salmon for treats.
-class _ExchangeTab extends StatelessWidget {
-  const _ExchangeTab({required this.player});
-  final PlayerData player;
-
-  Future<void> _exchange(BuildContext context, Fish fish) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text(
-          'Exchange 1 ${fish.label}?',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w900, color: _brown),
-        ),
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            FishAmount(fish, 1, size: 26),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Icon(Icons.arrow_forward_rounded, color: _muted),
-            ),
-            TreatAmount(fish.treatValue, size: 26),
-          ],
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: _muted)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: _accent),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Exchange'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !context.mounted) return;
-    if (PlayerService.instance.exchangeFish(fish)) {
-      AudioManager.instance.playSfx(Sfx.purrfect);
-      _say(context, '+${fish.treatValue} treats!');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text(
-          'Catch Tuna every 100 cats and Salmon every 200 in a game, or '
-          'win them in the Self Challenge. Use a Tuna to realign, a Salmon '
-          'to revive, or trade them here.',
-          style: TextStyle(color: _muted),
-        ),
-        const SizedBox(height: 14),
-        for (final fish in Fish.values) ...[
-          _ExchangeCard(
-            fish: fish,
-            owned: player.fishCount(fish),
-            onExchange: () => _exchange(context, fish),
-          ),
-          const SizedBox(height: 12),
-        ],
-      ],
-    );
-  }
-}
-
-class _ExchangeCard extends StatelessWidget {
-  const _ExchangeCard({
-    required this.fish,
-    required this.owned,
-    required this.onExchange,
-  });
-
-  final Fish fish;
-  final int owned;
-  final VoidCallback onExchange;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          FishIcon(fish, size: 44),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  fish.label,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: _brown,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    const Text('1 = ', style: TextStyle(color: _muted)),
-                    TreatAmount(fish.treatValue, size: 15),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'You have $owned',
-                  style: const TextStyle(fontSize: 13, color: _muted),
-                ),
-              ],
-            ),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: _accent),
-            onPressed: owned > 0 ? onExchange : null,
-            child: const Text('Exchange'),
-          ),
-        ],
-      ),
-    );
-  }
 }

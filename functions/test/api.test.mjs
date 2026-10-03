@@ -58,7 +58,7 @@ const rejects = (promise, reason) => assert.rejects(promise, (e) => e.reason ===
 describe('wallet', () => {
   test('daily reward once a day', async () => {
     const p = await newPlayer();
-    assert.deepEqual(await p.call('claimDaily', { today }), { reward: 10, day: 1 });
+    assert.deepEqual(await p.call('claimDaily', { today }), { treats: 10, tuna: 0, salmon: 0, day: 1 });
     await rejects(p.call('claimDaily', { today }), 'already-claimed');
     assert.equal((await p.wallet()).treats, 310);
   });
@@ -84,7 +84,7 @@ describe('wallet', () => {
   });
 
   test('buying needs enough treats and can only happen once', async () => {
-    const p = await newPlayer(350);
+    const p = await newPlayer(550);
     await p.call('buyCat', { catId: 'siamese' });
     await rejects(p.call('buyCat', { catId: 'siamese' }), 'already-owned');
     await rejects(p.call('buyCat', { catId: 'bengal' }), 'not-enough-treats');
@@ -94,6 +94,24 @@ describe('wallet', () => {
     assert.deepEqual(w.ownedCats, ['siamese']);
   });
 
+  test('a few videos unlock a video cat (only those cats)', async () => {
+    const p = await newPlayer(0);
+    await rejects(p.call('watchCatAd', { catId: 'bengal' }), 'bad-catId');
+    for (let i = 1; i <= 2; i++) {
+      assert.deepEqual(await p.call('watchCatAd', { catId: 'tuxedo' }), {
+        watched: i, needed: 3, unlocked: false,
+      });
+    }
+    assert.equal((await p.wallet()).ownedCats, undefined);
+    assert.deepEqual(await p.call('watchCatAd', { catId: 'tuxedo' }), {
+      watched: 3, needed: 3, unlocked: true,
+    });
+    await rejects(p.call('watchCatAd', { catId: 'tuxedo' }), 'already-owned');
+    const w = await p.wallet();
+    assert.deepEqual(w.ownedCats, ['tuxedo']);
+    assert.equal(w.treats, 0);
+  });
+
   test('wallpaper by ad only for ad wallpapers', async () => {
     const p = await newPlayer(0);
     await p.call('unlockWallpaper', { wallpaperId: 'polka' });
@@ -101,14 +119,17 @@ describe('wallet', () => {
     assert.equal((await p.wallet()).wallpaper, 'polka');
   });
 
-  test('exchange needs a fish', async () => {
+  test('daily reward: a Tuna on day 6, a Salmon on day 7', async () => {
     const p = await newPlayer(0);
-    await rejects(p.call('exchangeFish', { fish: 'tuna' }), 'not-enough-tuna');
-    await db.doc(`users/${p.uid}`).update({ salmon: 1 });
-    await p.call('exchangeFish', { fish: 'salmon' });
+    const yesterday = new Date(Date.parse(today) - 86400000).toISOString().slice(0, 10);
+    await db.doc(`users/${p.uid}`).update({ dailyDay: 5, dailyLastClaim: yesterday });
+    assert.deepEqual(await p.call('claimDaily', { today }), { treats: 0, tuna: 1, salmon: 0, day: 6 });
+    await db.doc(`users/${p.uid}`).update({ dailyLastClaim: yesterday });
+    assert.deepEqual(await p.call('claimDaily', { today }), { treats: 0, tuna: 0, salmon: 1, day: 7 });
     const w = await p.wallet();
-    assert.equal(w.treats, 375);
-    assert.equal(w.salmon, 0);
+    assert.equal(w.treats, 0);
+    assert.equal(w.tuna, 1);
+    assert.equal(w.salmon, 1);
   });
 });
 
@@ -134,6 +155,26 @@ describe('games', () => {
     const w = await p.wallet();
     assert.equal(w.treats, 70);
     assert.equal(w.tuna, 1);
+  });
+
+  test('premium wallpaper: double treats for 20 s after every 50 cats', async () => {
+    // A streak of 6 right after the 50th cat pays 10 at combo 4, 5 and 6.
+    const run = async (owned) => {
+      const p = await newPlayer(0);
+      if (owned) await db.doc(`users/${p.uid}`).update({ ownedWallpapers: ['crowns'] });
+      const { gameId } = await p.call('startGame', { mode: 'normal', wallpaperId: 'crowns' });
+      await ageGame(gameId, 120000);
+      await p.call('landings', { gameId, landings: Array.from({ length: 50 }, () => basic(0)) });
+      const streak = [1, 2, 3, 4, 5, 6].map(basic);
+      const r = await p.call('landings', { gameId, landings: streak });
+      // After the window: another streak pays normally.
+      clock += 25000;
+      const later = await p.call('landings', { gameId, landings: [0, 1, 2, 3, 4].map(basic) });
+      return [r.treats, later.treats];
+    };
+    assert.deepEqual(await run(true), [60, 10]);
+    // Not owned: no bonus.
+    assert.deepEqual(await run(false), [30, 10]);
   });
 
   test('impossible streaks, unowned tiers and speed are refused', async () => {

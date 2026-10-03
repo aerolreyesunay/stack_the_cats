@@ -16,7 +16,17 @@ export function reviveCostFor(score: number): number {
 }
 
 // ---------- Earning ----------
-export const dailyRewards = [10, 20, 30, 50, 75, 100, 200];
+/** Daily sign-in rewards for day 1-7 of a streak: treats, then a Tuna on
+ * day 6 and a Salmon on day 7. */
+export const dailyRewards: { treats: number; tuna: number; salmon: number }[] = [
+  { treats: 10, tuna: 0, salmon: 0 },
+  { treats: 20, tuna: 0, salmon: 0 },
+  { treats: 50, tuna: 0, salmon: 0 },
+  { treats: 100, tuna: 0, salmon: 0 },
+  { treats: 200, tuna: 0, salmon: 0 },
+  { treats: 0, tuna: 1, salmon: 0 },
+  { treats: 0, tuna: 0, salmon: 1 },
+];
 
 export const perfectStreakStart = 3;
 export const perfectStreakReward = 10;
@@ -36,8 +46,6 @@ export const maxStoreAdsPerDay = 10;
 export const newPlayerWindowMs = 7 * 24 * 60 * 60 * 1000;
 
 // ---------- Tuna and Salmon ----------
-export const fishValue: Record<Fish, number> = { tuna: 250, salmon: 375 };
-
 /** A Tuna every 100 cats, a Salmon instead every 200 (normal games). */
 export function fishForMilestone(score: number): Fish | null {
   if (score <= 0) return null;
@@ -114,16 +122,29 @@ export const catTiers: Record<string, Tier> = {
   tuxedo: 'special',
   russianBlue: 'special',
   calico: 'special',
+  orangeWhite: 'special',
+  silverTabby: 'special',
   siamese: 'exotic',
   bengal: 'exotic',
   scottishFold: 'exotic',
   maineCoon: 'exotic',
   sphynx: 'exotic',
+  ragdoll: 'exotic',
+  snowBengal: 'exotic',
 };
 
-export const tierPrice: Record<Tier, number> = { basic: 0, special: 100, exotic: 300 };
+export const tierPrice: Record<Tier, number> = { basic: 0, special: 300, exotic: 500 };
 
-export const wallpapers: Record<string, { price: number; adUnlockable: boolean }> = {
+/** Cats that can also be unlocked with videos (two per paid tier), and
+ * how many videos each tier takes. */
+export const adCats = new Set(['tuxedo', 'orangeWhite', 'siamese', 'ragdoll']);
+export const adVideos: Record<Tier, number> = { basic: 0, special: 3, exotic: 5 };
+
+/** [payoutBonus]: premium, see payoutBonus below. */
+export const wallpapers: Record<
+  string,
+  { price: number; adUnlockable: boolean; payoutBonus?: boolean }
+> = {
   classic: { price: 0, adUnlockable: false },
   polka: { price: 100, adUnlockable: true },
   plaid: { price: 100, adUnlockable: false },
@@ -131,7 +152,16 @@ export const wallpapers: Record<string, { price: number; adUnlockable: boolean }
   fishy: { price: 100, adUnlockable: false },
   dusk: { price: 100, adUnlockable: false },
   paws: { price: 100, adUnlockable: true },
+  hearts: { price: 100, adUnlockable: false },
+  checks: { price: 100, adUnlockable: false },
+  crowns: { price: 500, adUnlockable: false, payoutBonus: true },
+  blossom: { price: 500, adUnlockable: false, payoutBonus: true },
 };
+
+/** Premium wallpapers: in a normal game started with one, every 50 cats
+ * opens a window of 20 s of play in which landings pay double treats (not
+ * fish; the daily limit still applies). */
+export const payoutBonus = { every: 50, ms: 20000, multiplier: 2 };
 
 // ---------- Daily streak ----------
 

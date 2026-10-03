@@ -3,7 +3,19 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 /// The pattern drawn behind the game.
-enum WallPattern { stripes, dots, plaid, leaves, fish, stars, paws }
+enum WallPattern {
+  stripes,
+  dots,
+  plaid,
+  leaves,
+  fish,
+  stars,
+  paws,
+  hearts,
+  checks,
+  crowns,
+  blossoms,
+}
 
 /// A wallpaper for the game background. All are light, so the brown score
 /// and cats always stand out.
@@ -16,10 +28,15 @@ class Wallpaper {
     required this.ink,
     required this.pattern,
     this.adUnlockable = false,
+    this.payoutBonus = false,
   });
 
   /// Can also be unlocked by watching one video ad instead of paying.
   final bool adUnlockable;
+
+  /// Premium: in a normal game started with this wallpaper, every 50 cats
+  /// stacked pays double treats for [PayoutBonus.seconds] seconds.
+  final bool payoutBonus;
 
   final String id;
   final String name;
@@ -39,6 +56,7 @@ class Wallpapers {
   Wallpapers._();
 
   static const price = 100;
+  static const premiumPrice = 500;
 
   static const classic = Wallpaper(
     id: 'classic',
@@ -101,6 +119,40 @@ class Wallpapers {
       ink: Color(0x268A5A3C),
       pattern: WallPattern.paws,
       adUnlockable: true,
+    ),
+    Wallpaper(
+      id: 'hearts',
+      name: 'Sweet Hearts',
+      price: price,
+      background: Color(0xFFFFEBEE),
+      ink: Color(0x33E57373),
+      pattern: WallPattern.hearts,
+    ),
+    Wallpaper(
+      id: 'checks',
+      name: 'Butter Checks',
+      price: price,
+      background: Color(0xFFFFF8E1),
+      ink: Color(0x1FE0A030),
+      pattern: WallPattern.checks,
+    ),
+    Wallpaper(
+      id: 'crowns',
+      name: 'Golden Crowns',
+      price: premiumPrice,
+      background: Color(0xFFFBF1D3),
+      ink: Color(0x40C08A1E),
+      pattern: WallPattern.crowns,
+      payoutBonus: true,
+    ),
+    Wallpaper(
+      id: 'blossom',
+      name: 'Cherry Blossom',
+      price: premiumPrice,
+      background: Color(0xFFFCE8EF),
+      ink: Color(0x4DE68AA8),
+      pattern: WallPattern.blossoms,
+      payoutBonus: true,
     ),
   ];
 
@@ -175,6 +227,34 @@ void paintWallpaper(
           _paw(canvas, Offset(x, y), row.isEven ? 0.3 : -0.3, ink);
         }
       }
+    case WallPattern.hearts:
+      for (double y = -tile + shift; y < size.height + tile; y += 48) {
+        final row = ((y - shift) / 48).round();
+        for (double x = (row.isEven ? 16 : 40); x < size.width; x += 48) {
+          _heart(canvas, Offset(x, y), 8, ink);
+        }
+      }
+    case WallPattern.checks:
+      for (double y = -tile + shift; y < size.height + tile; y += 32) {
+        final row = ((y - shift) / 32).round();
+        for (double x = row.isEven ? 0 : 32; x < size.width; x += 64) {
+          canvas.drawRect(Rect.fromLTWH(x, y, 32, 32), ink);
+        }
+      }
+    case WallPattern.crowns:
+      for (double y = -tile + shift; y < size.height + tile; y += 64) {
+        final row = ((y - shift) / 64).round();
+        for (double x = (row.isEven ? 28 : 64); x < size.width; x += 72) {
+          _crown(canvas, Offset(x, y), ink);
+        }
+      }
+    case WallPattern.blossoms:
+      for (double y = -tile + shift; y < size.height + tile; y += 64) {
+        final row = ((y - shift) / 64).round();
+        for (double x = (row.isEven ? 24 : 58); x < size.width; x += 68) {
+          _blossom(canvas, Offset(x, y), row.isEven ? 9 : 6.5, ink);
+        }
+      }
   }
 }
 
@@ -240,4 +320,66 @@ void _paw(Canvas canvas, Offset at, double angle, Paint paint) {
     canvas.drawCircle(Offset(dx, dy), 3.4, paint);
   }
   canvas.restore();
+}
+
+void _heart(Canvas canvas, Offset at, double r, Paint paint) {
+  final path = Path()
+    ..moveTo(at.dx, at.dy + r)
+    ..cubicTo(
+      at.dx - r * 1.6,
+      at.dy - r * 0.2,
+      at.dx - r * 0.6,
+      at.dy - r * 1.4,
+      at.dx,
+      at.dy - r * 0.45,
+    )
+    ..cubicTo(
+      at.dx + r * 0.6,
+      at.dy - r * 1.4,
+      at.dx + r * 1.6,
+      at.dy - r * 0.2,
+      at.dx,
+      at.dy + r,
+    )
+    ..close();
+  canvas.drawPath(path, paint);
+}
+
+void _crown(Canvas canvas, Offset at, Paint paint) {
+  canvas.save();
+  canvas.translate(at.dx, at.dy);
+  final path = Path()
+    ..moveTo(-13, 8)
+    ..lineTo(-15, -6)
+    ..lineTo(-7, 0)
+    ..lineTo(0, -10)
+    ..lineTo(7, 0)
+    ..lineTo(15, -6)
+    ..lineTo(13, 8)
+    ..close()
+    ..addRect(const Rect.fromLTWH(-13, 10, 26, 3.5));
+  for (final x in [-15.0, 0.0, 15.0]) {
+    path.addOval(
+      Rect.fromCircle(center: Offset(x, x == 0 ? -12 : -8), radius: 2.6),
+    );
+  }
+  // One path, so the see-through ink doesn't darken where shapes meet.
+  canvas.drawPath(path, paint);
+  canvas.restore();
+}
+
+void _blossom(Canvas canvas, Offset at, double r, Paint paint) {
+  // Five petals as one path, so the see-through ink doesn't darken where
+  // they overlap.
+  final path = Path();
+  for (var i = 0; i < 5; i++) {
+    final a = -pi / 2 + i * 2 * pi / 5;
+    path.addOval(
+      Rect.fromCircle(
+        center: at + Offset(cos(a) * r * 0.62, sin(a) * r * 0.62),
+        radius: r * 0.5,
+      ),
+    );
+  }
+  canvas.drawPath(path, paint);
 }

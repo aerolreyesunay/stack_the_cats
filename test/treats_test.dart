@@ -85,7 +85,7 @@ void main() {
 
     test('first ever claim is day 1', () {
       final s = DailyStatus.compute(lastClaim: null, lastDay: 0, now: now);
-      expect((s.day, s.claimable, s.reward), (1, true, 10));
+      expect((s.day, s.claimable, s.reward.treats), (1, true, 10));
     });
 
     test('claiming on consecutive days moves the streak on', () {
@@ -94,7 +94,7 @@ void main() {
         lastDay: 3,
         now: now,
       );
-      expect((s.day, s.claimable, s.reward), (4, true, 50));
+      expect((s.day, s.claimable, s.reward.treats), (4, true, 100));
     });
 
     test('already claimed today is not claimable', () {
@@ -121,16 +121,22 @@ void main() {
         lastDay: 7,
         now: now,
       );
-      expect((s.day, s.reward), (1, 10));
+      expect((s.day, s.reward.treats), (1, 10));
     });
 
-    test('day 7 pays 200', () {
-      final s = DailyStatus.compute(
+    test('day 6 pays a Tuna and day 7 a Salmon', () {
+      final s6 = DailyStatus.compute(
+        lastClaim: '2026-09-30',
+        lastDay: 5,
+        now: now,
+      );
+      expect((s6.day, s6.reward.treats, s6.reward.fish), (6, 0, Fish.tuna));
+      final s7 = DailyStatus.compute(
         lastClaim: '2026-09-30',
         lastDay: 6,
         now: now,
       );
-      expect((s.day, s.reward), (7, 200));
+      expect((s7.day, s7.reward.treats, s7.reward.fish), (7, 0, Fish.salmon));
     });
 
     test('yesterday works across a month boundary', () {

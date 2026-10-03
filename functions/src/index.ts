@@ -155,13 +155,13 @@ const actions: Record<string, Handler> = {
       if (!status.claimable) fail('failed-precondition', 'already-claimed');
       const reward = eco.dailyRewards[status.day - 1];
       return {
-        wallet: { treats: reward },
+        wallet: reward,
         user: {
           dailyDay: status.day,
           dailyLastClaim: today,
           dailyClaimedAt: FieldValue.serverTimestamp(),
         },
-        result: { reward, day: status.day },
+        result: { ...reward, day: status.day },
       };
     });
   },
@@ -224,6 +224,26 @@ const actions: Record<string, Handler> = {
     });
   },
 
+  /** One watched video towards a video-unlockable cat; the last one the
+   * cat's tier needs unlocks it. */
+  async watchCatAd(uid, data) {
+    const catId = str(data.catId, 'catId');
+    const tier = eco.catTiers[catId];
+    if (!tier || !eco.adCats.has(catId)) fail('invalid-argument', 'bad-catId');
+    return walletOp(uid, opIdOf(data), async (_tx, user) => {
+      if (owns(user, 'ownedCats', catId)) fail('failed-precondition', 'already-owned');
+      const watched = int(user.catAds?.[catId]) + 1;
+      const unlocked = watched >= eco.adVideos[tier];
+      return {
+        user: {
+          [`catAds.${catId}`]: watched,
+          ...(unlocked ? { ownedCats: FieldValue.arrayUnion(catId) } : {}),
+        },
+        result: { watched, needed: eco.adVideos[tier], unlocked },
+      };
+    });
+  },
+
   /** After watching a video. (Only some wallpapers, and each just once.) */
   async unlockWallpaper(uid, data) {
     const id = str(data.wallpaperId, 'wallpaperId');
@@ -235,14 +255,6 @@ const actions: Record<string, Handler> = {
         result: { ok: true },
       };
     });
-  },
-
-  async exchangeFish(uid, data) {
-    const fish = oneOf(data.fish, ['tuna', 'salmon'] as const, 'fish');
-    return walletOp(uid, opIdOf(data), async () => ({
-      wallet: { [fish]: -1, treats: eco.fishValue[fish] },
-      result: { treats: eco.fishValue[fish] },
-    }));
   },
 
   // ----- Games -----
@@ -265,7 +277,14 @@ const actions: Record<string, Handler> = {
     }
     // Starting a game ends any other: one account can't farm on several
     // phones at once.
-    return walletOp(uid, opIdOf(data), async (tx) => {
+    return walletOp(uid, opIdOf(data), async (tx, user) => {
+      // A normal game started with an owned premium wallpaper pays double
+      // treats at times.
+      const wallpaperId = typeof data.wallpaperId === 'string' ? data.wallpaperId : '';
+      const payoutBonus =
+        mode === 'normal' &&
+        eco.wallpapers[wallpaperId]?.payoutBonus === true &&
+        owns(user, 'ownedWallpapers', wallpaperId);
       if (mode === 'match' && (await tx.get(gameRef)).exists) {
         return { user: { activeGame: gameRef.id }, result: { gameId: gameRef.id } };
       }
@@ -282,6 +301,8 @@ const actions: Record<string, Handler> = {
             combo: 0,
             ended: false,
             uses: {},
+            payoutBonus,
+            bonusUntil: -1,
             stats: { n: 0, perfects: 0, gaps: 0, gapSum: 0, gapSumSq: 0 },
             flagged: false,
             createdAt: FieldValue.serverTimestamp(),
@@ -326,6 +347,7 @@ const actions: Record<string, Handler> = {
         gapSumSq: Number(game.stats?.gapSumSq ?? 0),
       };
       let lastT = int(game.lastT, -1);
+      let bonusUntil = int(game.bonusUntil, -1);
       for (const landing of list) {
         const next = int(landing?.combo, -1);
         const tier = oneOf(landing?.tier, ['basic', 'special', 'exotic'] as const, 'tier');
@@ -350,7 +372,12 @@ const actions: Record<string, Handler> = {
           continue;
         }
         if (game.mode === 'match') continue; // matches pay at the end
-        treats += eco.treatsForLanding(combo, score, tier);
+        let paid = eco.treatsForLanding(combo, score, tier);
+        if (game.payoutBonus === true) {
+          if (t <= bonusUntil) paid *= eco.payoutBonus.multiplier;
+          if (score % eco.payoutBonus.every === 0) bonusUntil = t + eco.payoutBonus.ms;
+        }
+        treats += paid;
         const fish = eco.fishForMilestone(score);
         if (fish === 'tuna') tuna++;
         if (fish === 'salmon') salmon++;
@@ -408,7 +435,15 @@ const actions: Record<string, Handler> = {
             : {}),
         },
         writes: (t) => {
-          t.update(gameRef, { score, combo, lastAt: now, lastT, stats: { ...stats }, flagged });
+          t.update(gameRef, {
+            score,
+            combo,
+            lastAt: now,
+            lastT,
+            bonusUntil,
+            stats: { ...stats },
+            flagged,
+          });
           if (onBoard && score > allTimeBest) t.set(bestRef, entry);
           if (onBoard && score > weekBest) t.set(weekRef, entry);
         },

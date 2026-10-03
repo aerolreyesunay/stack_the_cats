@@ -15,10 +15,19 @@ void main() {
     for (final c in Cats.all) {
       expect(c.price, switch (c.tier) {
         CatTier.basic => 0,
-        CatTier.special => 100,
-        CatTier.exotic => 300,
+        CatTier.special => 300,
+        CatTier.exotic => 500,
       });
     }
+  });
+
+  test('two cats per paid tier unlock with videos: 3 Special, 5 Exotic', () {
+    for (final tier in [CatTier.special, CatTier.exotic]) {
+      expect(Cats.all.where((c) => c.tier == tier && c.adUnlockable).length, 2);
+    }
+    expect(Cats.all.where((c) => c.isBasic && c.adUnlockable), isEmpty);
+    expect(CatTier.special.adVideos, 3);
+    expect(CatTier.exotic.adVideos, 5);
   });
 
   test('the old colours are now Special cats in the Store', () {
@@ -40,14 +49,17 @@ void main() {
     }
   });
 
-  test('wallpapers: one free, the rest 100, unique ids', () {
+  test('wallpapers: one free, 2 premium at 500, the rest 100', () {
     expect(Wallpapers.all.where((w) => w.isFree), [Wallpapers.classic]);
     expect(
       Wallpapers.all.map((w) => w.id).toSet().length,
       Wallpapers.all.length,
     );
+    final premium = Wallpapers.all.where((w) => w.payoutBonus).toList();
+    expect(premium.map((w) => w.id), ['crowns', 'blossom']);
     for (final w in Wallpapers.all.where((w) => !w.isFree)) {
-      expect(w.price, 100);
+      expect(w.price, w.payoutBonus ? 500 : 100);
+      expect(w.payoutBonus && w.adUnlockable, isFalse);
     }
     expect(Wallpapers.byId('unknown'), Wallpapers.classic);
   });

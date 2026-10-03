@@ -137,8 +137,16 @@ class _GameScreenState extends State<GameScreen> {
     final signedIn = AuthService.instance.currentUser != null;
     final full = signedIn && ConnectivityService.instance.isOnline;
     _session?.end();
-    _session = full ? GameSession.startNormal() : null;
-    return full ? RunRules.full : RunRules.guest;
+    // The wallpaper the run starts with decides its double treats (a
+    // premium one bought mid-run counts from the next run).
+    final wallpaper = _currentWallpaper();
+    _session = full ? GameSession.startNormal(wallpaper.id) : null;
+    if (!full) return RunRules.guest;
+    return RunRules(
+      earnsTreats: true,
+      maxScore: null,
+      payoutBonus: wallpaper.payoutBonus,
+    );
   }
 
   @override

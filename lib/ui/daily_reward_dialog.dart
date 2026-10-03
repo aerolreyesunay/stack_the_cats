@@ -10,7 +10,7 @@ const _brown = Color(0xFF5B3A29);
 const _muted = Color(0xFF8A6A55);
 const _cream = Color(0xFFFDEBD3);
 
-/// Shows the 7-day sign-in reward and lets the player claim today's treats.
+/// Shows the 7-day sign-in reward and lets the player claim today's.
 Future<void> showDailyRewardDialog(BuildContext context, DailyStatus status) {
   return showDialog<void>(
     context: context,
@@ -29,18 +29,20 @@ class _DailyRewardDialog extends StatefulWidget {
 
 class _DailyRewardDialogState extends State<_DailyRewardDialog> {
   bool _busy = false;
-  int? _claimed;
+  DailyReward? _claimed;
+  bool _done = false;
 
   Future<void> _claim() async {
     setState(() => _busy = true);
     try {
-      final amount = await PlayerService.instance.claimDaily();
+      final reward = await PlayerService.instance.claimDaily();
       if (!mounted) return;
       AudioManager.instance.playSfx(Sfx.purrfect);
-      if (amount != null) showTreatConfetti(context);
+      if (reward != null) showTreatConfetti(context);
       setState(() {
         _busy = false;
-        _claimed = amount ?? 0;
+        _claimed = reward;
+        _done = true;
       });
     } catch (e) {
       debugPrint('Daily claim failed: $e');
@@ -58,6 +60,7 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
   Widget build(BuildContext context) {
     final today = widget.status.day;
     final claimed = _claimed;
+    final done = _done;
     return AlertDialog(
       backgroundColor: Colors.white,
       title: const Text(
@@ -69,9 +72,11 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            claimed == null
+            !done
                 ? 'Day $today of 7. Come back every day for bigger treats!'
-                : 'You got $claimed treats! See you tomorrow.',
+                : claimed == null
+                ? 'See you tomorrow!'
+                : 'You got ${claimed.label}! See you tomorrow.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: _muted),
           ),
@@ -85,7 +90,7 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
                 _DayTile(
                   day: day,
                   reward: Treats.dailyRewards[day - 1],
-                  done: day < today || (day == today && claimed != null),
+                  done: day < today || (day == today && done),
                   isToday: day == today,
                 ),
             ],
@@ -94,7 +99,7 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
       ),
       actionsAlignment: MainAxisAlignment.center,
       actions: [
-        if (claimed == null)
+        if (!done)
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: treatColor),
             onPressed: _busy ? null : _claim,
@@ -107,7 +112,7 @@ class _DailyRewardDialogState extends State<_DailyRewardDialog> {
                       color: Colors.white,
                     ),
                   )
-                : Text('Claim ${widget.status.reward}'),
+                : Text('Claim ${widget.status.reward.label}'),
           )
         else
           TextButton(
@@ -128,7 +133,7 @@ class _DayTile extends StatelessWidget {
   });
 
   final int day;
-  final int reward;
+  final DailyReward reward;
   final bool done;
   final bool isToday;
 
@@ -162,10 +167,12 @@ class _DayTile extends StatelessWidget {
                   color: treatColor,
                   size: 18,
                 )
+              : reward.fish != null
+              ? FishIcon(reward.fish!, size: 18)
               : const TreatIcon(size: 16),
           const SizedBox(height: 2),
           Text(
-            '$reward',
+            reward.fish?.label ?? '${reward.treats}',
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,

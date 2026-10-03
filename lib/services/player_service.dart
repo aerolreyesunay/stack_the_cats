@@ -30,6 +30,7 @@ class PlayerData {
     this.createdAt,
     this.ownedCats = const {},
     this.ownedWallpapers = const {},
+    this.catAds = const {},
     this.wallpaperId,
     this.wallpaperRandom = false,
     this.recentOps = const {},
@@ -70,6 +71,11 @@ class PlayerData {
 
   /// Store wallpapers this player bought.
   final Set<String> ownedWallpapers;
+
+  /// Videos watched so far towards each video-unlockable cat (by id).
+  final Map<String, int> catAds;
+
+  int catAdsWatched(CatBreed cat) => catAds[cat.id] ?? 0;
 
   /// The wallpaper in use (null = the free one).
   final String? wallpaperId;
@@ -129,6 +135,10 @@ class PlayerData {
     ownedWallpapers: {
       ...((d['ownedWallpapers'] as List?) ?? const []).cast<String>(),
     },
+    catAds: {
+      for (final e in ((d['catAds'] as Map?) ?? const {}).entries)
+        if (e.value is num) '${e.key}': (e.value as num).toInt(),
+    },
     wallpaperId: d['wallpaper'] as String?,
     wallpaperRandom: d['wallpaperRandom'] == true,
     recentOps: {...((d['recentOps'] as List?) ?? const []).cast<String>()},
@@ -169,6 +179,7 @@ class PlayerData {
     createdAt: createdAt,
     ownedCats: ownedCats ?? this.ownedCats,
     ownedWallpapers: ownedWallpapers ?? this.ownedWallpapers,
+    catAds: catAds,
     wallpaperId: wallpaperId ?? this.wallpaperId,
     wallpaperRandom: wallpaperRandom ?? this.wallpaperRandom,
     recentOps: recentOps,
@@ -450,6 +461,21 @@ class PlayerService {
     return true;
   }
 
+  /// Counts one watched video towards a video-unlockable cat; the last one
+  /// of [CatTier.adVideos] unlocks it (shown straight away). Returns the
+  /// videos watched so far, or null if it couldn't be saved.
+  Future<int?> watchedCatAd(CatBreed cat) async {
+    final current = player.value;
+    if (current == null || !cat.adUnlockable || current.ownsCat(cat)) {
+      return null;
+    }
+    final last = current.catAdsWatched(cat) + 1 >= cat.tier.adVideos;
+    final result = await run('watchCatAd', {
+      'catId': cat.id,
+    }, change: last ? WalletChange(cat: cat.id) : WalletChange.none);
+    return (result?['watched'] as num?)?.toInt();
+  }
+
   /// Unlocks a wallpaper for free (after watching a video ad) and puts it
   /// up straight away.
   bool unlockWallpaperWithAd(Wallpaper wallpaper) {
@@ -459,16 +485,6 @@ class PlayerService {
     run('unlockWallpaper', {
       'wallpaperId': wallpaper.id,
     }, change: WalletChange(wallpaper: wallpaper.id));
-    return true;
-  }
-
-  /// Store exchange: one [fish] for its [Fish.treatValue] in treats.
-  bool exchangeFish(Fish fish) {
-    final change = fish == Fish.tuna
-        ? WalletChange(tuna: -1, treats: fish.treatValue)
-        : WalletChange(salmon: -1, treats: fish.treatValue);
-    if (player.value == null || !canAfford(change)) return false;
-    run('exchangeFish', {'fish': fish.name}, change: change);
     return true;
   }
 
@@ -524,14 +540,23 @@ class PlayerService {
     return result != null;
   }
 
-  /// Claims today's sign-in reward. Returns the treats given, or null if
+  /// Claims today's sign-in reward. Returns what was given, or null if
   /// there was nothing to claim.
-  Future<int?> claimDaily() async {
+  Future<DailyReward?> claimDaily() async {
     final current = player.value;
     if (current == null || !current.daily.claimable) return null;
     final result = await run('claimDaily', {
       'today': DailyStatus.dateKey(DateTime.now()),
     }, quiet: true);
-    return (result?['reward'] as num?)?.toInt();
+    if (result == null) return null;
+    int count(String key) => (result[key] as num?)?.toInt() ?? 0;
+    return DailyReward(
+      treats: count('treats'),
+      fish: count('salmon') > 0
+          ? Fish.salmon
+          : count('tuna') > 0
+          ? Fish.tuna
+          : null,
+    );
   }
 }

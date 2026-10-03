@@ -5,8 +5,9 @@ import '../services/connectivity_service.dart';
 import 'ad_service.dart';
 
 /// A banner ad across the bottom of the screen, sized to fit the screen's
-/// width. Takes no space at all until an ad has loaded (or while offline),
-/// and never overlaps the game: it sits below it.
+/// width. Takes no space at all until an ad has loaded, and none while
+/// offline (even if one loaded earlier). Never overlaps the game: it sits
+/// below it.
 class BannerSlot extends StatefulWidget {
   const BannerSlot({super.key});
 
@@ -26,7 +27,13 @@ class _BannerSlotState extends State<BannerSlot> {
   void initState() {
     super.initState();
     _ready.addListener(_retry);
-    _online.addListener(_retry);
+    _online.addListener(_onlineChanged);
+  }
+
+  /// Hides the banner while offline, and loads one when back online.
+  void _onlineChanged() {
+    if (mounted) setState(() {});
+    _retry();
   }
 
   @override
@@ -69,7 +76,7 @@ class _BannerSlotState extends State<BannerSlot> {
   @override
   void dispose() {
     _ready.removeListener(_retry);
-    _online.removeListener(_retry);
+    _online.removeListener(_onlineChanged);
     _ad?.dispose();
     super.dispose();
   }
@@ -77,7 +84,9 @@ class _BannerSlotState extends State<BannerSlot> {
   @override
   Widget build(BuildContext context) {
     final ad = _ad;
-    if (!_loaded || ad == null) return const SizedBox.shrink();
+    if (!_loaded || ad == null || !_online.value) {
+      return const SizedBox.shrink();
+    }
     return SafeArea(
       top: false,
       child: SizedBox(

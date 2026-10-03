@@ -5,16 +5,24 @@ enum CatTier {
   /// Free for everyone.
   basic,
 
-  /// 100 treats: +1 treat on a Purrfect landing, +3 during a streak.
+  /// 300 treats: +1 treat on a Purrfect landing, +3 during a streak.
   special,
 
-  /// 300 treats: +5 treats on a Purrfect landing, double during a streak.
+  /// 500 treats: +5 treats on a Purrfect landing, double during a streak.
   exotic;
 
   int get price => switch (this) {
     CatTier.basic => 0,
-    CatTier.special => 100,
-    CatTier.exotic => 300,
+    CatTier.special => 300,
+    CatTier.exotic => 500,
+  };
+
+  /// Videos to watch to unlock one of this tier's [CatBreed.adUnlockable]
+  /// cats instead of paying. (The server keeps the same numbers.)
+  int get adVideos => switch (this) {
+    CatTier.basic => 0,
+    CatTier.special => 3,
+    CatTier.exotic => 5,
   };
 
   String get label => switch (this) {
@@ -70,6 +78,7 @@ class CatBreed {
     this.ears = CatEars.pointed,
     this.stripes = Stripes.never,
     this.fluffy = false,
+    this.adUnlockable = false,
   });
 
   final String id;
@@ -88,6 +97,10 @@ class CatBreed {
 
   /// Big fluffy tail (Maine Coon).
   final bool fluffy;
+
+  /// Can also be unlocked by watching [CatTier.adVideos] videos (two cats
+  /// in each paid tier).
+  final bool adUnlockable;
 
   int get price => tier.price;
   bool get isBasic => tier == CatTier.basic;
@@ -117,7 +130,7 @@ class Cats {
     stripes: Stripes.sometimes,
   );
 
-  // ---------- Special (100 treats) ----------
+  // ---------- Special (300 treats) ----------
   static const black = CatBreed(
     id: 'black',
     name: 'Black Cat',
@@ -160,6 +173,7 @@ class Cats {
     marking: Color(0xFFF7F4EF),
     eye: Color(0xFF8BC34A),
     pattern: CatPattern.tuxedo,
+    adUnlockable: true,
   );
   static const russianBlue = CatBreed(
     id: 'russianBlue',
@@ -178,8 +192,27 @@ class Cats {
     eye: Color(0xFF3B2A1A),
     pattern: CatPattern.calico,
   );
+  static const orangeWhite = CatBreed(
+    id: 'orangeWhite',
+    name: 'Orange & White',
+    tier: CatTier.special,
+    fur: Color(0xFFF2994A),
+    marking: Color(0xFFF7F4EF),
+    eye: Color(0xFF7CB342),
+    pattern: CatPattern.tuxedo,
+    adUnlockable: true,
+  );
+  static const silverTabby = CatBreed(
+    id: 'silverTabby',
+    name: 'Silver Tabby',
+    tier: CatTier.special,
+    fur: Color(0xFFC9CFD6),
+    marking: Color(0xFF6F7A86),
+    eye: Color(0xFF6FCF6F),
+    stripes: Stripes.always,
+  );
 
-  // ---------- Exotic (300 treats) ----------
+  // ---------- Exotic (500 treats) ----------
   static const siamese = CatBreed(
     id: 'siamese',
     name: 'Siamese',
@@ -188,6 +221,7 @@ class Cats {
     marking: Color(0xFF5A4032),
     eye: Color(0xFF3F8EE0),
     pattern: CatPattern.points,
+    adUnlockable: true,
   );
   static const bengal = CatBreed(
     id: 'bengal',
@@ -228,6 +262,26 @@ class Cats {
     eye: Color(0xFF5AB3A8),
     pattern: CatPattern.hairless,
   );
+  static const ragdoll = CatBreed(
+    id: 'ragdoll',
+    name: 'Ragdoll',
+    tier: CatTier.exotic,
+    fur: Color(0xFFF5EDE2),
+    marking: Color(0xFF7A6352),
+    eye: Color(0xFF4A90E2),
+    pattern: CatPattern.points,
+    fluffy: true,
+    adUnlockable: true,
+  );
+  static const snowBengal = CatBreed(
+    id: 'snowBengal',
+    name: 'Snow Bengal',
+    tier: CatTier.exotic,
+    fur: Color(0xFFF1ECE2),
+    marking: Color(0xFF8C8172),
+    eye: Color(0xFF5FA8D3),
+    pattern: CatPattern.spots,
+  );
 
   static const all = <CatBreed>[
     ginger,
@@ -239,11 +293,15 @@ class Cats {
     tuxedo,
     russianBlue,
     calico,
+    orangeWhite,
+    silverTabby,
     siamese,
     bengal,
     scottishFold,
     maineCoon,
     sphynx,
+    ragdoll,
+    snowBengal,
   ];
 
   static final basic = [

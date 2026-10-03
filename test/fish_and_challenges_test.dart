@@ -13,11 +13,6 @@ void main() {
       expect(Fish.forMilestone(300), Fish.tuna);
       expect(Fish.forMilestone(400), Fish.salmon);
     });
-
-    test('exchange values', () {
-      expect(Fish.tuna.treatValue, 250);
-      expect(Fish.salmon.treatValue, 375);
-    });
   });
 
   group('UseCounter', () {
@@ -84,6 +79,13 @@ void main() {
       expect(wobbly.period, lessThan(calm.period));
       expect(shaky.period, lessThan(wobbly.period));
       expect(shaky.period, greaterThanOrEqualTo(3));
+    });
+
+    test('offline games sway twice as fast, just as wide', () {
+      final online = CushionSway.at(40, 0.6);
+      final offline = CushionSway.at(40, 0.6, speed: CushionSway.offlineSpeed);
+      expect(offline.amplitude, online.amplitude);
+      expect(offline.period, online.period / 2);
     });
   });
 
