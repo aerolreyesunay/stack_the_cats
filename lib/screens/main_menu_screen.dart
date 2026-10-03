@@ -9,6 +9,7 @@ import '../game/cat.dart';
 import '../store/catalog.dart';
 import '../store/store_screen.dart';
 import '../economy/treats.dart';
+import '../services/age_gate.dart';
 import '../services/friends_service.dart';
 import '../services/player_service.dart';
 import '../ui/account_panel.dart';
@@ -307,7 +308,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                       onPressed: () => _open(const ChallengeModesScreen()),
                     ),
                     const SizedBox(height: 12),
-                    // Leaderboard and Friends side by side.
+                    // Leaderboard and Friends side by side (no Friends
+                    // in kids' mode).
                     Row(
                       children: [
                         Expanded(
@@ -317,19 +319,21 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                             onPressed: () => _open(const LeaderboardScreen()),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          // Shows how many friend requests are waiting.
-                          child: ValueListenableBuilder<List<FriendRequest>>(
-                            valueListenable: FriendsService.instance.incoming,
-                            builder: (context, requests, _) => _MenuButton(
-                              icon: Icons.group_rounded,
-                              label: 'Friends',
-                              badge: requests.length,
-                              onPressed: () => _open(const FriendsScreen()),
+                        if (!AgeGate.instance.isKid) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            // Shows how many friend requests are waiting.
+                            child: ValueListenableBuilder<List<FriendRequest>>(
+                              valueListenable: FriendsService.instance.incoming,
+                              builder: (context, requests, _) => _MenuButton(
+                                icon: Icons.group_rounded,
+                                label: 'Friends',
+                                badge: requests.length,
+                                onPressed: () => _open(const FriendsScreen()),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ],

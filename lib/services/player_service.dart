@@ -9,6 +9,7 @@ import '../economy/invites.dart';
 import '../store/catalog.dart';
 import '../store/wallpapers.dart';
 import '../economy/treats.dart';
+import 'age_gate.dart';
 import 'connectivity_service.dart';
 import 'server_api.dart';
 
@@ -345,9 +346,12 @@ class PlayerService {
   /// and photo up to date for leaderboards and friends.
   Future<void> _ensureProfile(User user) async {
     final ref = _doc(user.uid);
+    // Kids' mode accounts are anonymous: a made-up name and no photo.
     final profile = {
-      'displayName': user.displayName ?? 'Cat stacker',
-      'photoUrl': user.photoURL,
+      'displayName': user.isAnonymous
+          ? KidName.forUid(user.uid)
+          : user.displayName ?? 'Cat stacker',
+      'photoUrl': user.isAnonymous ? null : user.photoURL,
       'updatedAt': FieldValue.serverTimestamp(),
     };
     final isNew = await _db.runTransaction<bool>((tx) async {

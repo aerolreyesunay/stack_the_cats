@@ -6,6 +6,9 @@ import { before, describe, test } from 'node:test';
 import { initializeApp } from 'firebase-admin/app';
 import { getDatabase } from 'firebase-admin/database';
 import { getFirestore } from 'firebase-admin/firestore';
+import { createRequire } from 'node:module';
+
+const { kidName } = createRequire(import.meta.url)('../lib/economy.js');
 
 const project = 'stack-the-cats-9538a';
 const rtdbUrl = 'https://stack-the-cats-9538a-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -24,13 +27,19 @@ let opCounter = 0;
 const op = () => `test-op-${Date.now()}-${opCounter++}`;
 const today = new Date().toISOString().slice(0, 10);
 
-async function newPlayer(treats = 300) {
+/** A player signed in with an email account, or (kid) an anonymous
+ * kids' mode account. */
+async function newPlayer(treats = 300, { kid = false } = {}) {
   const res = await fetch(
     'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake',
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email: `p${Date.now()}${opCounter++}@test.dev`, password: 'secret12', returnSecureToken: true }),
+      body: JSON.stringify(
+        kid
+          ? { returnSecureToken: true }
+          : { email: `p${Date.now()}${opCounter++}@test.dev`, password: 'secret12', returnSecureToken: true },
+      ),
     },
   );
   const { idToken, localId } = await res.json();
@@ -448,6 +457,61 @@ describe('leaderboard and invites', () => {
     assert.equal((await inviter.call('claimReferrals')).count, 1);
     assert.equal((await inviter.call('claimReferrals')).count, 0);
     assert.equal((await inviter.wallet()).treats, 200);
+  });
+});
+
+describe("kids' mode", () => {
+  test('kid names match the app', () => {
+    // The same names as the app's KidName.forUid (test/age_gate_test.dart).
+    assert.equal(kidName('abc123'), 'Speedy Kitten 98');
+    assert.equal(kidName('Xy9QpL2mN8rT4vW6zK1jH3gF5dS7'), 'Fluffy Muffin 52');
+  });
+
+  test('kids show on the leaderboard by their made-up name only', async () => {
+    const k = await newPlayer(0, { kid: true });
+    await db.doc(`users/${k.uid}`).update({ displayName: 'Real Name', photoUrl: 'https://example.com/me.png' });
+    const { gameId } = await k.call('startGame', { mode: 'normal' });
+    await ageGame(gameId, 120000);
+    await k.call('landings', { gameId, landings: [basic(0), basic(0), basic(0)] });
+    const entry = (await db.doc(`scores/${k.uid}`).get()).data();
+    assert.equal(entry.name, kidName(k.uid));
+    assert.equal(entry.photoUrl, null);
+    assert.equal(entry.best, 3);
+  });
+
+  test('no live matches, invites or friend bonuses for kids', async () => {
+    const k = await newPlayer(500, { kid: true });
+    await rejects(k.call('startGame', { mode: 'match', matchId: 'm1' }), 'not-for-kids');
+    await rejects(k.call('joinMatch', { matchId: 'm1' }), 'not-for-kids');
+    await rejects(k.call('rewardShare', { today }), 'not-for-kids');
+    await rejects(k.call('claimReferrals', {}), 'not-for-kids');
+    await rejects(k.call('claimFriendBonuses', {}), 'not-for-kids');
+    // The rest of the game works as usual.
+    await k.call('buyCat', { catId: 'siamese' });
+    assert.deepEqual((await k.wallet()).ownedCats, ['siamese']);
+  });
+
+  test('the rules keep kids out of friends and presence', async () => {
+    const k = await newPlayer(0, { kid: true });
+    const adult = await newPlayer(0);
+    const request = (p, to) =>
+      fetch(`${firestoreRest}/friendRequests?documentId=${p.uid}_${to}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${p.idToken}` },
+        body: JSON.stringify({
+          fields: { from: { stringValue: p.uid }, to: { stringValue: to }, fromName: { stringValue: 'Hi' } },
+        }),
+      });
+    assert.equal((await request(k, adult.uid)).status, 403);
+    assert.equal((await request(adult, k.uid)).status, 200);
+    // (?auth=: the emulator treats a Bearer header as an admin.)
+    const presence = (p) =>
+      fetch(`http://127.0.0.1:9000/status/${p.uid}.json?ns=stack-the-cats-9538a-default-rtdb&auth=${p.idToken}`, {
+        method: 'PUT',
+        body: JSON.stringify({ state: 'online' }),
+      });
+    assert.equal((await presence(k)).status, 401);
+    assert.equal((await presence(adult)).status, 200);
   });
 });
 

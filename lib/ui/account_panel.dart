@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../auth/auth_service.dart';
+import '../services/age_gate.dart';
 import '../services/connectivity_service.dart';
 import 'brand_logos.dart';
 
@@ -125,8 +126,33 @@ class _AccountPanelState extends State<AccountPanel> {
           );
         }
         final user = snapshot.data;
+        // Kids' mode: an anonymous account, no sign-in or sign-out.
+        if (AgeGate.instance.isKid) {
+          return user == null ? const SizedBox.shrink() : _kid(user);
+        }
         return user == null ? _signedOut() : _signedIn(user);
       },
+    );
+  }
+
+  Widget _kid(User user) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.pets_rounded, size: 18, color: _muted),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            'Playing as ${KidName.forUid(user.uid)}',
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: _brown,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

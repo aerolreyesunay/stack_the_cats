@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../services/age_gate.dart';
+import '../services/connectivity_service.dart';
+
 /// One place that signs players in and out and knows who is signed in.
 class AuthService {
   AuthService._();
@@ -66,6 +69,32 @@ class AuthService {
         throw StateError('Facebook login failed: ${login.message}');
     }
   }
+
+  /// Kids' mode: an anonymous account (no name, email or photo), so a child
+  /// can save progress without signing in with Google or Facebook. Signs
+  /// out any other account first. Keeps trying whenever the phone comes
+  /// back online.
+  Future<void> startKidsAccount() async {
+    if (!_kidsListening) {
+      _kidsListening = true;
+      ConnectivityService.instance.online.addListener(() {
+        if (ConnectivityService.instance.isOnline) startKidsAccount();
+      });
+    }
+    if (!AgeGate.instance.isKid || !ConnectivityService.instance.isOnline) {
+      return;
+    }
+    final user = currentUser;
+    if (user != null && user.isAnonymous) return;
+    try {
+      if (user != null) await signOut();
+      await _auth.signInAnonymously();
+    } catch (e) {
+      debugPrint('Kids account failed: $e');
+    }
+  }
+
+  bool _kidsListening = false;
 
   Future<void> signOut() async {
     await _auth.signOut();

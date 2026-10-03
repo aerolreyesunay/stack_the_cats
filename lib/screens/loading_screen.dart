@@ -8,11 +8,14 @@ import 'package:flutter/services.dart';
 import '../audio/audio_manager.dart';
 import '../ads/ad_service.dart';
 import '../challenge/challenge_service.dart';
+import '../auth/auth_service.dart';
+import '../services/age_gate.dart';
 import '../services/connectivity_service.dart';
 import '../services/friends_service.dart';
 import '../services/leaderboard_service.dart';
 import '../services/player_service.dart';
 import '../services/server_api.dart';
+import 'age_gate_screen.dart';
 import 'main_menu_screen.dart';
 
 const _background = Color(0xFF0E0F1A); // matches the logo's background
@@ -64,6 +67,15 @@ class _LoadingScreenState extends State<LoadingScreen>
     // Let the bar finish filling before leaving.
     await Future<void>.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
+    // The first launch asks the birth year before anything that depends on
+    // it (ads, accounts, friends) starts.
+    if (!AgeGate.instance.known) {
+      final year = await Navigator.of(context)
+          .push<int>(MaterialPageRoute(builder: (_) => const AgeGateScreen()));
+      if (year != null) await AgeGate.instance.setBirthYear(year);
+      _startForAge();
+      if (!mounted) return;
+    }
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
@@ -87,16 +99,27 @@ class _LoadingScreenState extends State<LoadingScreen>
       debugPrint('Firebase init failed: $e');
     }
     await connectionChecked;
+    await AgeGate.instance.load();
     PlayerService.instance.start();
     LeaderboardService.instance.start();
-    FriendsService.instance.start();
-    ChallengeService.instance.start();
-    // Ads start in the background (with the consent pop-up where needed).
-    unawaited(AdService.instance.start());
+    if (AgeGate.instance.known) _startForAge();
     _setProgress(0.2);
     await AudioManager.instance.init(
       onProgress: (p) => _setProgress(0.2 + p * 0.8),
     );
+  }
+
+  /// What depends on the player's age: kids get an anonymous account and
+  /// child-safe ads; everyone else gets friends and live matches too.
+  void _startForAge() {
+    if (AgeGate.instance.isKid) {
+      unawaited(AuthService.instance.startKidsAccount());
+    } else {
+      FriendsService.instance.start();
+      ChallengeService.instance.start();
+    }
+    // Ads start in the background (with the consent pop-up where needed).
+    unawaited(AdService.instance.start());
   }
 
   @override

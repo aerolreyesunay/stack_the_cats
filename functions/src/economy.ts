@@ -249,6 +249,28 @@ export function weekKey(nowMs: number): string {
 }
 
 /** A name for the leaderboard (as the app shows it). */
+/** Kids' mode accounts (anonymous) go by a made-up name like "Sleepy
+ * Kitten 42", worked out from the account id, the same as the app's
+ * KidName.forUid. */
+const kidAdjectives = [
+  'Sleepy', 'Fluffy', 'Happy', 'Brave', 'Tiny', 'Speedy', 'Sunny', 'Cozy',
+  'Jolly', 'Snowy', 'Lucky', 'Bouncy', 'Silly', 'Clever', 'Gentle', 'Mighty',
+];
+const kidNouns = [
+  'Kitten', 'Tabby', 'Whiskers', 'Paws', 'Mittens', 'Purrball', 'Tiger', 'Pebble',
+  'Biscuit', 'Muffin', 'Noodle', 'Pumpkin', 'Socks', 'Button', 'Pudding', 'Mochi',
+];
+
+export function kidName(uid: string): string {
+  // FNV-1a, 32 bits.
+  let h = 2166136261;
+  for (let i = 0; i < uid.length; i++) {
+    h ^= uid.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return `${kidAdjectives[h % 16]} ${kidNouns[(h >>> 4) % 16]} ${10 + ((h >>> 8) % 90)}`;
+}
+
 export function boardName(name: unknown): string {
   const trimmed = typeof name === 'string' ? name.trim() : '';
   if (!trimmed) return 'Cat stacker';

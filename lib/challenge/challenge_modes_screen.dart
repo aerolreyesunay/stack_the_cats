@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../audio/audio_manager.dart';
 import '../economy/treats.dart';
 import '../screens/game_screen.dart';
+import '../services/age_gate.dart';
 import '../services/game_session.dart';
 import '../services/player_service.dart';
 import '../ui/treats_ui.dart';
@@ -64,13 +65,15 @@ class _ChallengeModesScreenState extends State<ChallengeModesScreen> {
         valueListenable: PlayerService.instance.player,
         builder: (context, player, _) {
           if (player == null) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: const EdgeInsets.all(32),
                 child: Text(
-                  'Sign in (and connect to the internet) for challenges.',
+                  AgeGate.instance.isKid
+                      ? 'Connect to the internet for challenges.'
+                      : 'Sign in (and connect to the internet) for challenges.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: _muted),
+                  style: const TextStyle(fontSize: 16, color: _muted),
                 ),
               ),
             );
@@ -79,16 +82,19 @@ class _ChallengeModesScreenState extends State<ChallengeModesScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
               _selfChallengeCard(player),
-              const SizedBox(height: 22),
-              const _SectionTitle(
-                'Challenge Anyone',
-                'Race a random player live. Same cats, one tower each, '
-                    'no revives. Highest stack wins!',
-              ),
-              const SizedBox(height: 10),
-              _friendlyCard(),
-              const SizedBox(height: 12),
-              _wagerCard(player),
+              // Live matches with strangers and wagers: not in kids' mode.
+              if (!AgeGate.instance.isKid) ...[
+                const SizedBox(height: 22),
+                const _SectionTitle(
+                  'Challenge Anyone',
+                  'Race a random player live. Same cats, one tower each, '
+                      'no revives. Highest stack wins!',
+                ),
+                const SizedBox(height: 10),
+                _friendlyCard(),
+                const SizedBox(height: 12),
+                _wagerCard(player),
+              ],
             ],
           );
         },

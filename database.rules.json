@@ -3,7 +3,7 @@
     "status": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.provider !== 'anonymous' && auth.uid === $uid",
         ".validate": "newData.hasChild('state')"
       }
     },
@@ -11,7 +11,7 @@
       "$to": {
         ".read": "auth != null && auth.uid === $to",
         "$from": {
-          ".write": "auth != null && (auth.uid === $from || auth.uid === $to)",
+          ".write": "auth != null && auth.provider !== 'anonymous' && (auth.uid === $from || auth.uid === $to)",
           ".validate": "!newData.exists() || newData.hasChildren(['matchId', 'fromName', 'sentAt'])"
         }
       }
@@ -21,7 +21,7 @@
         ".read": "auth != null",
         ".validate": "$stakes.matches(/^(friendly|wager(100|200|300|500))$/)",
         "$uid": {
-          ".write": "auth != null && (auth.uid === $uid || (data.exists() && !data.child('matchId').exists() && newData.child('by').val() === auth.uid && newData.child('matchId').isString() && newData.child('name').val() === data.child('name').val() && newData.child('at').val() === data.child('at').val()))",
+          ".write": "auth != null && auth.provider !== 'anonymous' && (auth.uid === $uid || (data.exists() && !data.child('matchId').exists() && newData.child('by').val() === auth.uid && newData.child('matchId').isString() && newData.child('name').val() === data.child('name').val() && newData.child('at').val() === data.child('at').val()))",
           ".validate": "!newData.exists() || newData.hasChildren(['name', 'at'])"
         }
       }
@@ -29,18 +29,18 @@
     "matches": {
       "$matchId": {
         ".read": "auth != null && data.child('players').child(auth.uid).exists()",
-        ".write": "auth != null && !data.exists() && newData.hasChildren(['seed', 'state', 'players']) && newData.child('players').child(auth.uid).exists()",
+        ".write": "auth != null && auth.provider !== 'anonymous' && !data.exists() && newData.hasChildren(['seed', 'state', 'players']) && newData.child('players').child(auth.uid).exists()",
         "state": {
-          ".write": "auth != null && data.parent().child('players').child(auth.uid).exists()",
+          ".write": "auth != null && auth.provider !== 'anonymous' && data.parent().child('players').child(auth.uid).exists()",
           ".validate": "newData.isString() && newData.val().matches(/^(invited|countdown|declined|cancelled|finished)$/)"
         },
         "startAt": {
-          ".write": "auth != null && data.parent().child('players').child(auth.uid).exists()",
+          ".write": "auth != null && auth.provider !== 'anonymous' && data.parent().child('players').child(auth.uid).exists()",
           ".validate": "newData.isNumber()"
         },
         "players": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid && data.exists()",
+            ".write": "auth != null && auth.provider !== 'anonymous' && auth.uid === $uid && data.exists()",
             "score": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
             },

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../audio/audio_manager.dart';
+import '../services/age_gate.dart';
 import '../services/connectivity_service.dart';
 import 'ad_pacing.dart';
 
@@ -63,6 +64,20 @@ class AdService {
     try {
       await _gatherConsent();
       if (!await ConsentInformation.instance.canRequestAds()) return;
+      // Kids' mode: child-directed ads only (no personalised ads, rated G),
+      // as Google Play's Families policy requires. Everyone else: family-
+      // friendly (PG) ads, for a game kids play too.
+      final kid = AgeGate.instance.isKid;
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(
+          ageRestrictedTreatment: kid
+              ? AgeRestrictedTreatment.child
+              : AgeRestrictedTreatment.unspecified,
+          maxAdContentRating: kid
+              ? MaxAdContentRating.g
+              : MaxAdContentRating.pg,
+        ),
+      );
       await MobileAds.instance.initialize();
       ready.value = true;
       _loadInterstitial();
@@ -77,7 +92,7 @@ class AdService {
   Future<void> _gatherConsent() {
     final done = Completer<void>();
     ConsentInformation.instance.requestConsentInfoUpdate(
-      ConsentRequestParameters(),
+      ConsentRequestParameters(tagForUnderAgeOfConsent: AgeGate.instance.isKid),
       () => ConsentForm.loadAndShowConsentFormIfRequired((error) {
         if (error != null) debugPrint('Consent form: ${error.message}');
         if (!done.isCompleted) done.complete();

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../ui/info_dialog.dart';
 import '../auth/auth_service.dart';
 import '../economy/treats.dart';
+import '../services/age_gate.dart';
 import '../services/friends_service.dart';
 import '../services/leaderboard_service.dart';
 
@@ -204,7 +205,11 @@ class _Row extends StatelessWidget {
         children: [
           SizedBox(width: 36, child: _RankBadge(rank)),
           const SizedBox(width: 8),
-          _Avatar(name: entry.name, photoUrl: entry.photoUrl),
+          // Kids' mode shows initials only, not other players' photos.
+          _Avatar(
+            name: entry.name,
+            photoUrl: AgeGate.instance.isKid ? null : entry.photoUrl,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -228,7 +233,9 @@ class _Row extends StatelessWidget {
           // Same width on every row so the scores line up.
           SizedBox(
             width: 40,
-            child: isMe ? null : _AddFriendButton(entry: entry),
+            child: isMe || AgeGate.instance.isKid
+                ? null
+                : _AddFriendButton(entry: entry),
           ),
         ],
       ),

@@ -138,7 +138,15 @@ function ownsTier(user: DocumentData, tier: eco.Tier): boolean {
 
 // ---------- Actions ----------
 
-type Handler = (uid: string, data: Record<string, unknown>) => Promise<unknown>;
+/** Who is calling: [kid] for kids' mode (anonymous) accounts. */
+interface Caller {
+  kid: boolean;
+}
+
+type Handler = (uid: string, data: Record<string, unknown>, caller: Caller) => Promise<unknown>;
+
+/** Kids' mode: no friends, invites, live matches or wagers. */
+const notForKids = new Set(['rewardShare', 'claimReferrals', 'claimFriendBonuses', 'joinMatch', 'settleMatch']);
 
 const actions: Record<string, Handler> = {
   // ----- Rewards -----
@@ -316,7 +324,7 @@ const actions: Record<string, Handler> = {
    * cat's tier and when it landed (ms of play since the game started). The
    * server works out the treats and fish itself, within the daily limit,
    * and pays nothing for a game that looks machine-played. */
-  async landings(uid, data) {
+  async landings(uid, data, caller) {
     const gameRef = db.doc(`games/${str(data.gameId, 'gameId', 100)}`);
     const list = data.landings;
     if (!Array.isArray(list) || list.length === 0 || list.length > 60) {
@@ -416,8 +424,9 @@ const actions: Record<string, Handler> = {
       // The leaderboard is written only here, from the score counted here.
       const entry = {
         uid,
-        name: eco.boardName(user.displayName),
-        photoUrl: typeof user.photoUrl === 'string' ? user.photoUrl : null,
+        // Kids show on the board only by their made-up name.
+        name: caller.kid ? eco.kidName(uid) : eco.boardName(user.displayName),
+        photoUrl: !caller.kid && typeof user.photoUrl === 'string' ? user.photoUrl : null,
         best: score,
         updatedAt: FieldValue.serverTimestamp(),
       };
@@ -714,7 +723,12 @@ export const api = onCall(async (request: CallableRequest<unknown>) => {
     logger.warn('Call without a valid App Check token', { uid });
   }
   const data = (request.data ?? {}) as Record<string, unknown>;
-  const action = actions[str(data.action, 'action')];
+  const name = str(data.action, 'action');
+  const action = actions[name];
   if (!action) fail('invalid-argument', 'bad-action');
-  return action(uid, data);
+  const kid = request.auth?.token.firebase?.sign_in_provider === 'anonymous';
+  if (kid && (notForKids.has(name) || (name === 'startGame' && data.mode === 'match'))) {
+    fail('permission-denied', 'not-for-kids');
+  }
+  return action(uid, data, { kid });
 });
