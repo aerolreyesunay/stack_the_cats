@@ -1,0 +1,1015 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="ad.orientation" content="portrait">
+<!--HEAD-->
+<title>Stack the Cats</title>
+<style>
+  :root {
+    --wall: #FDEBD3;
+    --brown: #5B3A29;
+    --muted: #8A6A55;
+    --accent: #E76F51;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--wall);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    user-select: none; -webkit-user-select: none;
+    touch-action: none;
+  }
+  canvas { position: fixed; inset: 0; display: block; }
+  button { font: inherit; border: 0; cursor: pointer; }
+
+  #topCta {
+    position: fixed; top: 14px; right: 12px;
+    padding: 8px 14px; border-radius: 999px;
+    background: var(--accent); color: #fff;
+    font-size: 14px; font-weight: 800;
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+  #mute {
+    position: fixed; top: 12px; left: 10px;
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,.75); color: var(--brown);
+    display: grid; place-items: center;
+  }
+  #mute svg { width: 22px; height: 22px; }
+
+  #caption {
+    position: fixed; left: 16px; right: 16px; top: 37%;
+    text-align: center; pointer-events: none;
+    font-size: 30px; font-weight: 900; line-height: 1.15;
+    color: #fff;
+    letter-spacing: 1px; white-space: pre-line;
+    -webkit-text-stroke: 5px var(--brown); paint-order: stroke fill;
+    opacity: 0;
+  }
+
+  #end {
+    position: fixed; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(91,58,41,.35);
+    padding: 16px;
+  }
+  #end.show { display: flex; }
+  .card {
+    width: 100%; max-width: 340px;
+    background: #fff; border-radius: 26px;
+    padding: 26px 22px 18px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+  .card img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 4px 12px rgba(0,0,0,.18); }
+  .card h1 { margin: 14px 0 6px; font-size: 28px; font-weight: 900; color: var(--brown); line-height: 1.1; }
+  .card p { margin: 0; color: var(--muted); font-size: 16px; }
+  .card .hook { margin-top: 12px; color: var(--brown); font-size: 19px; font-weight: 800; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 14px 0 4px; }
+  .chips span {
+    background: var(--wall); color: var(--brown);
+    font-size: 12px; font-weight: 700;
+    padding: 5px 10px; border-radius: 999px;
+  }
+  #cta {
+    display: block; width: 100%; margin-top: 16px;
+    padding: 16px; border-radius: 16px;
+    background: var(--accent); color: #fff;
+    font-size: 22px; font-weight: 900; letter-spacing: .5px;
+    box-shadow: 0 4px 0 #B9533A;
+  }
+  .store { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  #nudge {
+    position: fixed; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(91,58,41,.35); padding: 16px;
+  }
+  #nudge.show { display: flex; }
+  #nudge .card { max-width: 320px; padding: 22px 20px 14px; }
+  #nudge img { width: 72px; height: 72px; border-radius: 18px; }
+  #nudge h1 { font-size: 24px; }
+  #nudgeGo {
+    display: block; width: 100%; margin-top: 16px;
+    padding: 14px; border-radius: 16px;
+    background: var(--accent); color: #fff;
+    font-size: 20px; font-weight: 900;
+    box-shadow: 0 4px 0 #B9533A;
+  }
+  #nudgeKeep { margin-top: 8px; padding: 8px; background: none; color: var(--muted); font-size: 15px; font-weight: 700; }
+  .ladder { display: flex; flex-direction: column; gap: 6px; margin: 14px auto 0; width: fit-content; text-align: left; }
+  .rung { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--brown); white-space: nowrap; }
+  .rung svg { width: 22px; height: 22px; flex: none; }
+  .rung b { font-weight: 900; }
+  #ladder.float {
+    position: fixed; left: 50%; top: calc(37% + 78px); margin: 0; width: max-content;
+    background: rgba(255,255,255,.95); border-radius: 18px; padding: 12px 16px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.18); opacity: 0; pointer-events: none;
+    transform: translateX(-50%);
+  }
+  #ladder.float .rung { font-size: 17px; }
+  #ladder.float .rung svg { width: 26px; height: 26px; }
+  .earned { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
+    background: var(--wall); border-radius: 999px; padding: 6px 14px;
+    color: var(--brown); font-weight: 900; font-size: 16px; white-space: nowrap; }
+  .earned svg { width: 22px; height: 22px; }
+  .demo #topCta, .demo #mute { display: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<button id="mute" aria-label="Sound on or off"></button>
+<button id="topCta">Install</button>
+<div id="caption"></div>
+<div id="ladder" class="ladder float"><div class="rung"><svg viewBox="0 0 24 24"><ellipse cx="13.9" cy="12" rx="10.1" ry="6.7" fill="#E76F51"/><path d="M6.2 12 L-1.2 5.3 L-1.2 18.7Z" fill="#E76F51" transform="translate(2 0)"/><circle cx="18.7" cy="10.6" r="1.4" fill="#fff"/></svg><b>+50</b> treats every 50 cats</div><div class="rung"><svg viewBox="0 0 24 24"><rect x="1.4" y="7.2" width="21.1" height="13.9" rx="2.9" fill="#2F6DB5"/><rect x="1.4" y="11" width="21.1" height="6.2" fill="#fff"/><ellipse cx="11" cy="14.2" rx="4.3" ry="1.8" fill="#2F6DB5"/><path d="M14.9 14.2 L18.2 12 L18.2 16.3Z" fill="#2F6DB5"/><ellipse cx="12" cy="7.2" rx="10.6" ry="3.4" fill="#B8C4CF"/><ellipse cx="12" cy="7" rx="7.7" ry="2.2" fill="#DCE3EA"/></svg><b>Tuna</b> at 100 cats</div><div class="rung"><svg viewBox="0 0 24 24"><path d="M12 22 C1.2 19.2 -.5 4.8 7.2 2.4 Q12 7.2 16.8 2.4 C24.5 4.8 22.8 19.2 12 22Z" fill="#FF8A65" stroke="#C0563A" stroke-width="1.9"/><path d="M7 12 Q12 19 17 12" stroke="#FFE0D2" stroke-width="1.4" fill="none"/><path d="M9 9 Q12 14 15 9" stroke="#FFE0D2" stroke-width="1.4" fill="none"/></svg><b>Salmon</b> at 200 cats</div></div>
+<div id="nudge">
+  <div class="card">
+    <img id="nudgeIcon" alt="Stack the Cats">
+    <h1 id="nudgeTitle"></h1>
+    <p>The full game is free: 18 cats to collect, rewards as you stack, no in-app purchases.</p>
+    <button id="nudgeGo">Download free</button>
+    <button id="nudgeKeep">Keep playing</button>
+  </div>
+</div>
+<div id="end">
+  <div class="card" id="card">
+    <img id="icon" alt="Stack the Cats">
+    <h1 id="endTitle"></h1>
+    <p id="endSub"></p>
+    <div class="earned" id="endEarned"></div>
+    <p class="hook" id="endHook">Can you stack 100?</p>
+    <div class="ladder" id="endLadder"><div class="rung"><svg viewBox="0 0 24 24"><ellipse cx="13.9" cy="12" rx="10.1" ry="6.7" fill="#E76F51"/><path d="M6.2 12 L-1.2 5.3 L-1.2 18.7Z" fill="#E76F51" transform="translate(2 0)"/><circle cx="18.7" cy="10.6" r="1.4" fill="#fff"/></svg><b>+50</b> treats every 50 cats</div><div class="rung"><svg viewBox="0 0 24 24"><rect x="1.4" y="7.2" width="21.1" height="13.9" rx="2.9" fill="#2F6DB5"/><rect x="1.4" y="11" width="21.1" height="6.2" fill="#fff"/><ellipse cx="11" cy="14.2" rx="4.3" ry="1.8" fill="#2F6DB5"/><path d="M14.9 14.2 L18.2 12 L18.2 16.3Z" fill="#2F6DB5"/><ellipse cx="12" cy="7.2" rx="10.6" ry="3.4" fill="#B8C4CF"/><ellipse cx="12" cy="7" rx="7.7" ry="2.2" fill="#DCE3EA"/></svg><b>Tuna</b> at 100 cats</div><div class="rung"><svg viewBox="0 0 24 24"><path d="M12 22 C1.2 19.2 -.5 4.8 7.2 2.4 Q12 7.2 16.8 2.4 C24.5 4.8 22.8 19.2 12 22Z" fill="#FF8A65" stroke="#C0563A" stroke-width="1.9"/><path d="M7 12 Q12 19 17 12" stroke="#FFE0D2" stroke-width="1.4" fill="none"/><path d="M9 9 Q12 14 15 9" stroke="#FFE0D2" stroke-width="1.4" fill="none"/></svg><b>Salmon</b> at 200 cats</div></div>
+    <div class="chips"><span>100% free</span><span>No in-app purchases</span><span>Play offline</span></div>
+    <button id="cta">PLAY FREE</button>
+    <div class="store">Free on Google Play</div>
+  </div>
+</div>
+<script>
+'use strict';
+// Stack the Cats: a 30-cat taste of the Self Challenge, for playable ads.
+// Add ?demo to the URL for the self-playing version used for video.
+
+const STORE_URL = 'https://play.google.com/store/apps/details?id=com.jcanstudios.stackthecats';
+const DEMO = /[?&]demo\b/.test(location.search);
+// Filled in by build.mjs: sound effects (base64 mp3) and the app icon.
+const SFX = {/*SFX*/};
+const ICON = '/*ICON*/';
+
+// ---------- Ad networks ----------
+function openStore() {
+  try {
+    if (window.FbPlayableAd) return window.FbPlayableAd.onCTAClick();
+    if (window.ExitApi) return window.ExitApi.exit();
+    if (window.mraid && window.mraid.open) return window.mraid.open(STORE_URL);
+  } catch (e) { /* fall through */ }
+  window.open(STORE_URL, '_blank');
+}
+
+// ---------- Rules ----------
+const GOAL = DEMO ? 100 : 30; // the video goes all the way
+const STEP = 20;            // as in the app: faster every 20 cats, and the
+                            // cushion sways from 20
+const GRAVITY = 2400;
+const PERFECT = 0.07;       // of a cat's width
+const CHIMES = [3, 8, 15];  // perfect landings for chime 1-3, then chime 4
+const MAX_PLAY = 60;        // seconds before the end card shows anyway
+const NUDGE_AT = [15, 25];  // cats stacked when the game pauses to offer the download
+
+// The Self Challenge's speeds: 340, then 60 faster every 20 cats.
+const speedFor = (score) => 340 + 60 * Math.min(Math.floor(score / STEP), 4);
+
+function swayAt(score, stability) {
+  if (score < STEP) return { amplitude: 0, period: 0 };
+  const shaky = 1 - Math.max(0, Math.min(1, stability));
+  return { amplitude: 6 + 64 * shaky, period: 7 - 4 * shaky };
+}
+
+// Treats for a landing, as in the app's normal games (Treats.forLanding):
+// from the 4th Purrfect in a row each pays 10 (Special cats 13, Exotic
+// 20); a Purrfect outside a streak pays 0 / 1 / 5; and every 50 cats pays
+// 50 (at 100 and 200 a Tuna or Salmon instead, out of reach here).
+function treatsFor(combo, score, tier) {
+  let earned = 0;
+  if (combo > 3) earned += { basic: 10, special: 13, exotic: 20 }[tier];
+  else if (combo > 0) earned += { basic: 0, special: 1, exotic: 5 }[tier];
+  if (score > 0 && score % 50 === 0 && score % 100 !== 0) earned += 50;
+  return earned;
+}
+
+// ---------- Cats ----------
+const B = (id, fur, marking, eye, o = {}) =>
+  ({ id, fur, marking, eye, pattern: 'plain', ears: 'pointed', stripes: 'never', fluffy: false, ...o });
+const BREEDS = [
+  B('ginger', '#F4A259', '#D9782D', '#3B2A1A', { stripes: 'sometimes' }),
+  B('grey', '#9AA5B1', '#6E7A87', '#2B2B2B', { stripes: 'sometimes' }),
+  B('black', '#3D3D3D', '#2A2A2A', '#F2D14B'),
+  B('white', '#F7F4EF', '#E2DBD0', '#4A7FB5'),
+  B('cream', '#EBD8B7', '#CDB38A', '#3B2A1A', { stripes: 'sometimes' }),
+  B('brown', '#8D6346', '#6B4630', '#7CB342', { stripes: 'sometimes' }),
+  B('tuxedo', '#2F2F33', '#F7F4EF', '#8BC34A', { pattern: 'tuxedo' }),
+  B('russianBlue', '#7D8DA6', '#66768F', '#6FCF6F'),
+  B('calico', '#F7F1E6', '#E58A3A', '#3B2A1A', { pattern: 'calico' }),
+  B('siamese', '#F1E3CC', '#5A4032', '#3F8EE0', { pattern: 'points' }),
+  B('bengal', '#E2A25A', '#6B3F1E', '#7CB342', { pattern: 'spots' }),
+  B('scottishFold', '#B9BEC6', '#8E949E', '#E7A33E', { ears: 'folded', stripes: 'always' }),
+  B('maineCoon', '#9C6B45', '#5E3D25', '#D9B23A', { ears: 'tufted', stripes: 'always', fluffy: true }),
+  B('sphynx', '#F2C9B8', '#D9A592', '#5AB3A8', { pattern: 'hairless' }),
+];
+// Store tiers, as in the app: 2 basic, 7 Special, 5 Exotic.
+BREEDS.push(
+  B('orangeWhite', '#F2994A', '#F7F4EF', '#7CB342', { pattern: 'tuxedo' }),
+  B('silverTabby', '#C9CFD6', '#6F7A86', '#6FCF6F', { stripes: 'always' }),
+  B('ragdoll', '#F5EDE2', '#7A6352', '#4A90E2', { pattern: 'points', fluffy: true }),
+  B('snowBengal', '#F1ECE2', '#8C8172', '#5FA8D3', { pattern: 'spots' }),
+);
+// Store tiers, as in the app.
+const BASIC = ['ginger', 'grey'];
+const EXOTIC = ['siamese', 'bengal', 'scottishFold', 'maineCoon', 'sphynx', 'ragdoll', 'snowBengal'];
+BREEDS.forEach((b) => { b.tier = BASIC.includes(b.id) ? 'basic' : EXOTIC.includes(b.id) ? 'exotic' : 'special'; });
+
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function rgbHex([r, g, b]) { return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1); }
+function lerpColor(a, b, t) {
+  const x = hexRgb(a), y = hexRgb(b);
+  return rgbHex(x.map((v, i) => Math.round(v + (y[i] - v) * t)));
+}
+function rgba(hex, alpha) { const [r, g, b] = hexRgb(hex); return `rgba(${r},${g},${b},${alpha})`; }
+function luminance(hex) {
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const [r, g, b] = hexRgb(hex);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+// Seeded in the demo so every recording gets the same cats.
+let seed = 20261003;
+function rand() {
+  if (!DEMO) return Math.random();
+  seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+// No two cats in a row the same breed, so the tower shows them all off.
+let lastBreed = null;
+function randomLook() {
+  let breed;
+  do { breed = BREEDS[Math.floor(rand() * BREEDS.length)]; } while (breed === lastBreed);
+  lastBreed = breed;
+  const roll = rand();
+  return {
+    breed,
+    striped: breed.stripes === 'always' || (breed.stripes === 'sometimes' && roll < 0.45),
+    tailRight: rand() < 0.5,
+    sleepy: rand() < 0.25,
+    dark: luminance(breed.fur) < 0.15,
+  };
+}
+
+// ---------- Drawing a cat (same shapes as the app) ----------
+function rrect(c, x, y, w, h, r) {
+  c.beginPath();
+  if (c.roundRect) { c.roundRect(x, y, w, h, r); return; }
+  c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function oval(c, cx, cy, w, h, fill) {
+  c.beginPath(); c.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2); c.fillStyle = fill; c.fill();
+}
+function circle(c, cx, cy, r, fill) {
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fillStyle = fill; c.fill();
+}
+function line(c, x1, y1, x2, y2, color, width, cap = 'butt') {
+  c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2);
+  c.strokeStyle = color; c.lineWidth = width; c.lineCap = cap; c.stroke();
+}
+
+const CALICO_BLACK = '#3A3A3A';
+const INNER_EAR = '#F4A6A6';
+const PAW_WHITE = '#F7F4EF';
+
+function paintCat(c, look, x, y, w, h, angle = 0, squash = 0) {
+  const br = look.breed, pattern = br.pattern;
+  c.save();
+  c.translate(x, y);
+  if (angle) c.rotate(angle);
+  if (squash > 0) {
+    const s = squash * 0.14;
+    c.translate(0, h / 2); c.scale(1 + s, 1 - s); c.translate(0, -h / 2);
+  }
+  const fur = br.fur, marking = br.marking;
+
+  // Tail
+  const side = look.tailRight ? 1 : -1;
+  const tailColor = pattern === 'points' ? marking : pattern === 'calico' ? CALICO_BLACK : fur;
+  c.beginPath();
+  c.moveTo(side * (w / 2 - h * 0.15), h * 0.25);
+  c.quadraticCurveTo(side * (w / 2 + h * 0.45), h * 0.2, side * (w / 2 + h * 0.3), -h * 0.35);
+  c.strokeStyle = tailColor; c.lineWidth = h * (br.fluffy ? 0.3 : 0.16); c.lineCap = 'round'; c.stroke();
+  if (br.fluffy) circle(c, side * (w / 2 + h * 0.31), -h * 0.3, h * 0.13, marking);
+
+  // Ears
+  const earScale = pattern === 'hairless' ? 1.15 : 1;
+  [-w * 0.27, w * 0.27].forEach((ex, i) => {
+    const earColor = pattern === 'points' ? marking
+      : pattern === 'calico' ? (i === 0 ? marking : CALICO_BLACK) : fur;
+    if (br.ears === 'folded') {
+      oval(c, ex, -h * 0.4, h * 0.42, h * 0.26, earColor);
+      return;
+    }
+    const tip = br.ears === 'tufted' ? 0.95 : 0.82 * earScale;
+    const half = 0.24 * earScale;
+    c.beginPath(); c.moveTo(ex - h * half, -h * 0.3); c.lineTo(ex, -h * tip); c.lineTo(ex + h * half, -h * 0.3);
+    c.closePath(); c.fillStyle = earColor; c.fill();
+    c.beginPath(); c.moveTo(ex - h * 0.12, -h * 0.38); c.lineTo(ex, -h * (tip - 0.14)); c.lineTo(ex + h * 0.12, -h * 0.38);
+    c.closePath(); c.fillStyle = INNER_EAR; c.fill();
+    if (br.ears === 'tufted') line(c, ex, -h * tip, ex + h * 0.04, -h * (tip + 0.16), marking, h * 0.05, 'round');
+  });
+
+  // Body
+  const r = h * 0.42;
+  rrect(c, -w / 2, -h / 2, w, h, r);
+  c.fillStyle = fur; c.fill();
+
+  // Markings, inside the body
+  c.save();
+  rrect(c, -w / 2, -h / 2, w, h, r); c.clip();
+  if (pattern === 'calico') {
+    oval(c, -w * 0.3, -h * 0.18, w * 0.38, h * 0.62, marking);
+    oval(c, w * 0.3, h * 0.12, w * 0.34, h * 0.55, CALICO_BLACK);
+    oval(c, w * 0.08, -h * 0.44, w * 0.2, h * 0.24, marking);
+  } else if (pattern === 'tuxedo') {
+    oval(c, 0, h * 0.45, w * 0.46, h * 0.62, marking);
+    oval(c, 0, h * 0.11, w * 0.3, h * 0.26, marking);
+  } else if (pattern === 'points') {
+    oval(c, 0, h * 0.04, w * 0.44, h * 0.5, rgba(marking, 215 / 255));
+  } else if (pattern === 'spots') {
+    c.strokeStyle = marking; c.lineWidth = h * 0.045;
+    for (const [sx, sy, rr] of [[-0.38, -0.2, 0.07], [-0.3, 0.2, 0.06], [-0.22, -0.38, 0.05],
+      [0.3, -0.22, 0.07], [0.38, 0.18, 0.06], [0.22, 0.36, 0.05], [-0.05, -0.4, 0.045]]) {
+      c.beginPath(); c.arc(w * sx, h * sy, h * rr, 0, Math.PI * 2); c.stroke();
+    }
+  } else if (pattern === 'hairless') {
+    c.strokeStyle = marking; c.lineWidth = h * 0.035; c.lineCap = 'round';
+    for (const yy of [-0.4, -0.3]) {
+      c.beginPath();
+      c.ellipse(0, h * yy + h * 0.08, w * 0.14, h * 0.09, 0, Math.PI * 1.15, Math.PI * 1.85);
+      c.stroke();
+    }
+  }
+  c.restore();
+  rrect(c, -w / 2, -h / 2, w, h, r);
+  c.strokeStyle = 'rgba(0,0,0,0.2)'; c.lineWidth = 2; c.stroke();
+
+  // Stripes
+  if (look.striped) {
+    for (const sx of [-w * 0.1, 0, w * 0.1]) line(c, sx, -h * 0.44, sx, -h * 0.3, marking, h * 0.07, 'round');
+    for (const s of [-1, 1]) {
+      line(c, s * w * 0.45, -h * 0.05, s * w * 0.35, -h * 0.05, marking, h * 0.07, 'round');
+      line(c, s * w * 0.45, h * 0.13, s * w * 0.35, h * 0.13, marking, h * 0.07, 'round');
+    }
+  }
+
+  // Paws
+  const paw = pattern === 'points' ? lerpColor(marking, '#FFFFFF', 0.15)
+    : pattern === 'tuxedo' ? PAW_WHITE : lerpColor(fur, '#FFFFFF', 0.35);
+  for (const px of [-w * 0.2, w * 0.2]) oval(c, px, h * 0.43, h * 0.34, h * 0.2, paw);
+
+  // Eyes
+  const eyeY = -h * 0.08, eyeDX = w * 0.14;
+  const darkFace = look.dark || pattern === 'points';
+  for (const ex of [-eyeDX, eyeDX]) {
+    if (look.sleepy) {
+      c.beginPath(); c.ellipse(ex, eyeY, h * 0.1, h * 0.07, 0, 0, Math.PI);
+      c.strokeStyle = darkFace ? br.eye : '#2B2B2B'; c.lineWidth = h * 0.05; c.lineCap = 'round'; c.stroke();
+    } else {
+      circle(c, ex, eyeY, h * 0.085, br.eye);
+      circle(c, ex + h * 0.03, eyeY - h * 0.03, h * 0.028, '#FFFFFF');
+    }
+  }
+
+  // Nose
+  c.beginPath(); c.moveTo(-h * 0.05, h * 0.05); c.lineTo(h * 0.05, h * 0.05); c.lineTo(0, h * 0.1); c.closePath();
+  c.fillStyle = '#E88A9A'; c.fill();
+
+  // Mouth and whiskers
+  const lines = darkFace ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.53)';
+  c.beginPath();
+  c.moveTo(0, h * 0.1); c.quadraticCurveTo(-h * 0.04, h * 0.17, -h * 0.09, h * 0.13);
+  c.moveTo(0, h * 0.1); c.quadraticCurveTo(h * 0.04, h * 0.17, h * 0.09, h * 0.13);
+  c.strokeStyle = lines; c.lineWidth = 1.5; c.lineCap = 'round'; c.stroke();
+  for (const s of [-1, 1]) {
+    line(c, s * w * 0.1, h * 0.08, s * w * 0.3, h * 0.03, lines, 1.2);
+    line(c, s * w * 0.1, h * 0.12, s * w * 0.3, h * 0.15, lines, 1.2);
+  }
+  c.restore();
+}
+
+// ---------- Sound ----------
+const Sound = {
+  ctx: null, buffers: {}, on: true, log: [],
+  unlock() {
+    if (DEMO || this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    for (const [name, b64] of Object.entries(SFX)) {
+      const bin = atob(b64), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      this.ctx.decodeAudioData(bytes.buffer, (buf) => { this.buffers[name] = buf; }, () => {});
+    }
+  },
+  play(name, delay = 0) {
+    // The demo only notes what plays when; record.mjs mixes the soundtrack.
+    if (DEMO) {
+      if (Demo.scale === 1) this.log.push({ t: Demo.videoClock + delay, name });
+      return;
+    }
+    if (!this.on || !this.ctx || !this.buffers[name]) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.buffers[name];
+    src.connect(this.ctx.destination);
+    src.start(this.ctx.currentTime + delay);
+  },
+};
+const meow = () => (rand() < 0.5 ? 'cat_meow_2' : 'cat_meow_3');
+
+// ---------- Game ----------
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+let W = 360, H = 640, DPR = 1;
+
+const game = {
+  phase: 'waiting', clock: 0, playTime: 0,
+  tower: [], tumbling: [], popups: [], ripples: [], confetti: [],
+  active: null, dir: 1, score: 0, combo: 0, perfects: 0,
+  scroll: 0, scrollTarget: 0, waitTimer: 0.5, overTimer: 0, won: false,
+  platformOffset: 0, swayPhase: 0, swayAmp: 0, swaySpeed: 0,
+  stability: 1, tilt: 0, shownTilt: 0,
+  message: '', messageLeft: 0, swungFor: 0,
+  treats: 0, shownTreats: 0, treatPop: 0, nudgeIn: 0,
+};
+
+const catW = () => Math.min(W * 0.3, 150);
+const catH = () => catW() * 0.58;
+const groundY = () => H - 110;
+const baseX = () => W / 2;
+const baseW = () => catW() * 1.4;
+const hangY = () => 120 + catH();
+const platformX = () => baseX() + game.platformOffset;
+
+function resize() {
+  const oldBase = baseX();
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const dx = baseX() - oldBase;
+  game.tower.forEach((c, i) => { c.x += dx; c.y = groundY() - i * catH() - catH() / 2; });
+  if (game.active) game.active.y = hangY();
+  game.scrollTarget = Math.max(0, H * 0.52 - (groundY() - game.tower.length * catH()));
+}
+
+function spawnCat() {
+  game.dir = rand() < 0.5 ? 1 : -1;
+  const x = game.dir > 0 ? catW() / 2 + 12 : W - catW() / 2 - 12;
+  game.active = { x, y: hangY(), vy: 0, vx: 0, angle: 0, spin: 0, squash: 0, look: randomLook() };
+  game.phase = 'swinging';
+  game.swungFor = 0;
+}
+
+function drop(tapX, tapY) {
+  if (game.phase !== 'swinging' || !game.active) return;
+  Sound.play('screen_tap');
+  game.ripples.push({ x: tapX, y: tapY, life: 1 });
+  game.phase = 'falling';
+  game.active.vy = 0;
+  if (DEMO) Demo.dropped();
+}
+
+function popup(text, x, y) { game.popups.push({ text, x, y, life: 1 }); }
+function say(text) { game.message = text; game.messageLeft = 1.4; }
+
+function balanceOf(xs) {
+  let sum = 0, count = 0, worst = 0;
+  for (let i = xs.length - 1; i >= 0; i--) {
+    sum += xs[i]; count++;
+    const centre = sum / count;
+    const support = i === 0 ? platformX() : xs[i - 1];
+    const half = i === 0 ? baseW() / 2 : catW() / 2;
+    const lean = (centre - support) / half;
+    if (Math.abs(lean) > Math.abs(worst)) worst = lean;
+  }
+  return worst; // beyond ±1 the tower topples
+}
+
+function checkLanding(cat) {
+  const top = groundY() - game.tower.length * catH();
+  if (cat.y + catH() / 2 < top + game.scroll) return;
+
+  const supportX = game.tower.length ? game.tower[game.tower.length - 1].x : platformX();
+  const supportHalf = game.tower.length ? catW() / 2 : baseW() / 2;
+  const offset = cat.x - supportX;
+
+  if (Math.abs(offset) > supportHalf) {
+    // Missed: it slides off the edge.
+    cat.y -= game.scroll;
+    const side = Math.sign(offset);
+    Object.assign(cat, { vx: side * 220, vy: -250, spin: side * 6 });
+    game.tumbling.push(cat);
+    game.active = null;
+    Sound.play('cat_misses');
+    endGame();
+    return;
+  }
+
+  cat.y = top - catH() / 2; cat.vy = 0; cat.squash = 1;
+  game.active = null;
+  const perfect = Math.abs(offset) < catW() * PERFECT;
+  if (perfect) {
+    cat.x = supportX;
+    game.combo++; game.perfects++;
+    popup(game.combo >= 2 ? `Purrfect! x${game.combo}` : 'Purrfect!', cat.x, cat.y - catH());
+  } else {
+    game.combo = 0;
+  }
+  game.tower.push(cat);
+  Sound.play('thump');
+  Sound.play(perfect ? 'cat_purrfect' : meow(), 0.12);
+  if (perfect) {
+    const i = CHIMES.indexOf(game.perfects);
+    if (i >= 0) Sound.play('chime_' + (i + 1));
+    else if (game.perfects > CHIMES[CHIMES.length - 1]) Sound.play('chime_4');
+  }
+
+  if (Math.abs(balanceOf(game.tower.map((c) => c.x))) > 1) { collapse(); return; }
+
+  game.score++;
+  if (speedFor(game.score) > speedFor(game.score - 1)) say('Speed increased!');
+  if (game.score === STEP) say('Watch out: the cushion sways!');
+  const earned = treatsFor(game.combo, game.score, cat.look.breed.tier);
+  if (earned > 0) {
+    game.treats += earned;
+    game.treatPop = 1;
+    popup(`+${earned} treats`, cat.x, cat.y - catH() * 1.7);
+  }
+  // As in normal games: a Tuna every 100 cats, a Salmon every 200.
+  const fish = game.score % 200 === 0 ? 'Salmon' : game.score % 100 === 0 ? 'Tuna' : null;
+  if (fish) popup(`+1 ${fish}!`, cat.x, cat.y - catH() * 1.7);
+  game.scrollTarget = Math.max(0, H * 0.52 - (groundY() - game.tower.length * catH()));
+  if (DEMO) Demo.landed(perfect, earned);
+
+  if (game.score >= GOAL) {
+    game.won = true;
+    game.phase = 'over'; game.overTimer = DEMO ? 2 : 0.9;
+    popup(`${GOAL} cats!`, baseX(), groundY() - game.tower.length * catH() - catH());
+    burstConfetti();
+    Sound.play('applause');
+    return;
+  }
+  game.phase = 'waiting'; game.waitTimer = 0.35;
+  // A moment to see the landing, then (before the next cat) the popup.
+  if (!DEMO && NUDGE_AT.includes(game.score)) game.nudgeIn = 0.3;
+}
+
+function collapse() {
+  let lean = Math.sign(game.tower.reduce((a, c) => a + c.x, 0) / game.tower.length - platformX()) || 1;
+  game.tower.forEach((c, i) => {
+    c.vx = lean * (60 + i * 45 + rand() * 80);
+    c.vy = -120 - rand() * 260;
+    c.spin = lean * (2 + rand() * 5);
+    game.tumbling.push(c);
+  });
+  game.tower = [];
+  Sound.play('tower_tumbles');
+  endGame();
+}
+
+function endGame() {
+  game.phase = 'over'; game.overTimer = 1.3; game.combo = 0;
+  if (DEMO) Demo.fell();
+}
+
+function burstConfetti() {
+  const colors = ['#E76F51', '#F4A259', '#3A8FB7', '#9B59B6', '#3E9B5B', '#F2D14B'];
+  for (let i = 0; i < 90; i++) {
+    game.confetti.push({
+      x: W / 2, y: H * 0.45,
+      vx: (rand() - 0.5) * 900, vy: -300 - rand() * 700,
+      spin: (rand() - 0.5) * 12, angle: rand() * 6, life: 2.5,
+      color: colors[i % colors.length], size: 6 + rand() * 6,
+    });
+  }
+}
+
+function update(dt) {
+  const step = Math.min(dt, 1 / 30);
+  // Everything waits while the download popup is up.
+  if (Nudge.open) return;
+  if (game.nudgeIn > 0) {
+    game.nudgeIn -= step;
+    if (game.nudgeIn <= 0) { Nudge.show(); return; }
+  }
+  game.clock += step;
+  if (game.phase !== 'over') game.playTime += step;
+
+  // The cushion sways, carrying the tower.
+  if (game.phase !== 'over') {
+    const sway = swayAt(game.score, game.stability);
+    const ease = Math.min(1, step * 1.5);
+    game.swayAmp += (sway.amplitude - game.swayAmp) * ease;
+    const speed = sway.period > 0 ? (2 * Math.PI) / sway.period : 0;
+    game.swaySpeed += (speed - game.swaySpeed) * ease;
+    game.swayPhase += game.swaySpeed * step;
+    const next = game.swayAmp * Math.sin(game.swayPhase);
+    const moved = next - game.platformOffset;
+    game.platformOffset = next;
+    for (const c of game.tower) c.x += moved;
+  }
+  game.scroll += (game.scrollTarget - game.scroll) * Math.min(1, step * 5);
+
+  const cat = game.active;
+  switch (game.phase) {
+    case 'waiting':
+      game.waitTimer -= step;
+      if (game.waitTimer <= 0) spawnCat();
+      break;
+    case 'swinging': {
+      game.swungFor += step;
+      cat.x += game.dir * speedFor(game.score) * step;
+      const minX = catW() / 2 + 12, maxX = W - catW() / 2 - 12;
+      if (cat.x < minX) { cat.x = minX; game.dir = 1; }
+      else if (cat.x > maxX) { cat.x = maxX; game.dir = -1; }
+      if (DEMO) Demo.think();
+      if (!DEMO && game.playTime > MAX_PLAY) { game.phase = 'over'; game.overTimer = 0; }
+      break;
+    }
+    case 'falling':
+      cat.vy += GRAVITY * step;
+      cat.y += cat.vy * step;
+      checkLanding(cat);
+      break;
+    case 'over':
+      game.overTimer -= step;
+      if (game.overTimer <= 0 && !End.shown) {
+        Sound.play(game.won ? 'chime_4' : 'game_over');
+        End.show();
+      }
+      break;
+  }
+
+  for (const c of game.tumbling) {
+    c.vy += GRAVITY * step; c.x += c.vx * step; c.y += c.vy * step; c.angle += c.spin * step;
+  }
+  game.tumbling = game.tumbling.filter((c) => c.y + game.scroll < H + 300);
+  for (const c of game.tower) c.squash = Math.max(0, c.squash - step * 4);
+  for (const p of game.popups) { p.y -= 45 * step; p.life -= step; }
+  game.popups = game.popups.filter((p) => p.life > 0);
+  for (const r of game.ripples) r.life -= step / 0.45;
+  game.ripples = game.ripples.filter((r) => r.life > 0);
+  for (const f of game.confetti) {
+    f.vy += 900 * step; f.vx *= 0.99; f.x += f.vx * step; f.y += f.vy * step; f.angle += f.spin * step; f.life -= step;
+  }
+  game.confetti = game.confetti.filter((f) => f.life > 0);
+  game.messageLeft = Math.max(0, game.messageLeft - step);
+  game.treatPop = Math.max(0, game.treatPop - step * 3);
+  if (game.shownTreats < game.treats) {
+    game.shownTreats = Math.min(game.treats, game.shownTreats + Math.max(1, (game.treats - game.shownTreats) * step * 8));
+  }
+
+  const tilt = Math.max(-1, Math.min(1, balanceOf(game.tower.map((c) => c.x))));
+  game.tilt = tilt;
+  game.stability = 1 - Math.abs(tilt);
+  game.shownTilt += (tilt - game.shownTilt) * Math.min(1, step * 8);
+
+  End.update(step);
+}
+
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+function text(str, x, y, size, weight, color, align = 'center', baseline = 'top') {
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = baseline;
+  ctx.fillText(str, x, y);
+}
+
+function render() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const cw = catW(), ch = catH();
+
+  // Wallpaper: Cozy Stripes
+  ctx.fillStyle = '#FDEBD3'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(138,90,60,0.05)';
+  for (let x = 0; x < W; x += 48) ctx.fillRect(x, 0, 22, H);
+
+  // Floor and cushion
+  const floorTop = groundY() + game.scroll;
+  ctx.fillStyle = '#C9A27E'; ctx.fillRect(0, floorTop + 26, W, H);
+  rrect(ctx, platformX() - baseW() / 2, floorTop, baseW(), 32, 14);
+  ctx.fillStyle = '#E76F51'; ctx.fill();
+
+  // Tower, leaning more the more off-balance it is
+  const n = game.tower.length;
+  const centre = n ? game.tower.reduce((a, c) => a + c.x, 0) / n : platformX();
+  const lean = Math.abs(centre - platformX()) / cw;
+  const wobble = Math.sin(game.clock * 2.4) * Math.min(5, lean * 8);
+  game.tower.forEach((c, i) => {
+    const t = n <= 1 ? 0 : i / (n - 1);
+    paintCat(ctx, c.look, c.x + wobble * t, c.y + game.scroll, cw, ch, 0, c.squash);
+  });
+  for (const c of game.tumbling) paintCat(ctx, c.look, c.x, c.y + game.scroll, cw, ch, c.angle);
+
+  const a = game.active;
+  if (a) {
+    if (game.phase === 'swinging') line(ctx, a.x, 0, a.x, a.y - ch / 2, 'rgba(138,106,85,0.4)', 2);
+    paintCat(ctx, a.look, a.x, a.y, cw, ch);
+  }
+
+  for (const p of game.popups) {
+    text(p.text, p.x, p.y + game.scroll, 22, 800, rgba('#E76F51', Math.max(0, Math.min(1, p.life))), 'center', 'middle');
+  }
+
+  // Score and goal
+  text(String(game.score), W / 2, 30, 48, 900, '#5B3A29');
+  renderTreats();
+  const left = Math.max(0, GOAL - game.score);
+  text(game.score === 0 ? `Stack ${GOAL} cats!` : `${left} ${left === 1 ? 'cat' : 'cats'} to go`,
+    W / 2, 88, 16, 600, '#8A6A55');
+
+  if (game.messageLeft > 0) {
+    const age = 1.4 - game.messageLeft;
+    const alpha = Math.min(Math.min(1, age / 0.15), Math.min(1, game.messageLeft / 0.5));
+    text(game.message, W / 2, 114 - age * 8, 18, 800, rgba('#E76F51', alpha));
+  }
+
+  // (The demo's caption says it instead.)
+  if (!DEMO && game.score === 0 && n === 0 && game.phase === 'swinging') {
+    const pulse = 1 + 0.06 * Math.sin(game.clock * 6);
+    ctx.save(); ctx.translate(W / 2, H * 0.5); ctx.scale(pulse, pulse);
+    text('Tap to drop the cat!', 0, 0, 24, 800, '#8A6A55', 'center', 'middle');
+    ctx.restore();
+  }
+
+  if (n >= 2 && game.phase !== 'over') renderStability();
+
+  for (const r of game.ripples) {
+    ctx.beginPath(); ctx.arc(r.x, r.y, 18 + (1 - r.life) * 34, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,255,255,${0.9 * r.life})`; ctx.lineWidth = 5; ctx.stroke();
+    circle(ctx, r.x, r.y, 16 * r.life, `rgba(255,255,255,${0.6 * r.life})`);
+  }
+
+  for (const f of game.confetti) {
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.angle);
+    ctx.globalAlpha = Math.min(1, f.life);
+    ctx.fillStyle = f.color; ctx.fillRect(-f.size / 2, -f.size / 4, f.size, f.size / 2);
+    ctx.restore();
+  }
+}
+
+// A fish, as the app's treat icon.
+function treatIcon(x, y, s, color) {
+  ctx.save(); ctx.translate(x, y); ctx.fillStyle = color;
+  ctx.beginPath(); ctx.ellipse(s * 0.08, 0, s * 0.42, s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-s * 0.24, 0); ctx.lineTo(-s * 0.55, -s * 0.28); ctx.lineTo(-s * 0.55, s * 0.28);
+  ctx.closePath(); ctx.fill();
+  circle(ctx, s * 0.28, -s * 0.06, s * 0.06, '#fff');
+  ctx.restore();
+}
+
+// The treats earned this game, in a pill at the top left.
+function renderTreats() {
+  const label = String(Math.round(game.shownTreats));
+  ctx.font = `800 18px ${FONT}`;
+  const w = 46 + ctx.measureText(label).width;
+  const x = DEMO ? 12 : 58, y = 14, h = 36;
+  const pop = 1 + 0.18 * game.treatPop;
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2); ctx.scale(pop, pop); ctx.translate(-(x + w / 2), -(y + h / 2));
+  rrect(ctx, x, y, w, h, 18); ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(91,58,41,0.16)'; ctx.lineWidth = 1; ctx.stroke();
+  treatIcon(x + 20, y + h / 2, 20, '#E76F51');
+  text(label, x + 36, y + h / 2 + 1, 18, 800, '#5B3A29', 'left', 'middle');
+  ctx.restore();
+}
+
+function renderStability() {
+  const percent = Math.round(game.stability * 100);
+  const side = Math.abs(game.tilt) < 0.08 ? 0 : Math.sign(game.tilt);
+  const color = percent >= 70 ? '#3E9B5B' : percent >= 40 ? '#E09B2D' : '#D64933';
+  const wobbly = percent < 50 && side !== 0;
+  const w = 260, h = wobbly ? 60 : 44;
+  const x = W / 2 - w / 2, y = H - 8 - h;
+  rrect(ctx, x, y, w, h, 14); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+  const leanText = side < 0 ? '  ·  leaning left' : side > 0 ? '  ·  leaning right' : '';
+  text(`Stability ${percent}%${leanText}`, W / 2, y + 5, 14, 800, color);
+  const trackY = y + 30, half = 100, cx = W / 2;
+  rrect(ctx, cx - half, trackY - 3, half * 2, 6, 3); ctx.fillStyle = 'rgba(138,106,85,0.2)'; ctx.fill();
+  ctx.fillStyle = 'rgba(138,106,85,0.6)'; ctx.fillRect(cx - 1, trackY - 6, 2, 12);
+  circle(ctx, cx + Math.max(-1, Math.min(1, game.shownTilt)) * half, trackY, 6, color);
+  if (wobbly) {
+    text(side > 0 ? '←  Land the next cat on the left' : 'Land the next cat on the right  →',
+      cx, trackY + 9, 12, 700, '#5B3A29');
+  }
+}
+
+// ---------- End card ----------
+const End = {
+  el: document.getElementById('end'), card: document.getElementById('card'),
+  cta: document.getElementById('cta'),
+  shown: false, t: 0,
+  show() {
+    this.shown = true; this.t = 0;
+    const title = document.getElementById('endTitle');
+    const sub = document.getElementById('endSub');
+    const hook = document.getElementById('endHook');
+    if (DEMO) {
+      title.textContent = 'Can YOU stack 100 cats?';
+      sub.textContent = 'Tap, drop, balance and earn as you go.';
+      hook.style.display = 'none';
+    } else if (game.won) {
+      title.textContent = 'Purrfect tower!';
+      sub.textContent = `${GOAL} cats stacked. You're a natural!`;
+      hook.textContent = 'Now try for 100 in the full game.';
+    } else {
+      title.textContent = game.score >= 15 ? 'So close!' : 'Tower down!';
+      sub.textContent = `You stacked ${game.score} ${game.score === 1 ? 'cat' : 'cats'}.`;
+      hook.textContent = 'Can you stack 100?';
+    }
+    const earnedEl = document.getElementById('endEarned');
+    earnedEl.style.display = game.treats > 0 ? '' : 'none';
+    earnedEl.innerHTML = document.querySelector('.rung svg').outerHTML +
+      `${game.treats.toLocaleString('en-US')} treats earned` + (game.score >= 100 ? ' + a Tuna' : '');
+    this.el.classList.add('show');
+    this.update(0);
+  },
+  update(step) {
+    if (!this.shown) return;
+    this.t += step;
+    // Animated from the game clock (not CSS) so the demo records the same every time.
+    const p = Math.min(1, this.t / 0.45);
+    const back = 1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2);
+    this.el.style.opacity = String(Math.min(1, this.t / 0.25));
+    this.card.style.transform = `scale(${0.6 + 0.4 * back})`;
+    const pulse = this.t > 0.6 ? 1 + 0.04 * Math.sin((this.t - 0.6) * 6) : 1;
+    this.cta.style.transform = `scale(${pulse})`;
+  },
+};
+
+// ---------- Download popup (mid-game) ----------
+// Pauses the game; "Keep playing" carries on exactly where it stopped.
+const Nudge = {
+  el: document.getElementById('nudge'),
+  open: false,
+  show() {
+    this.open = true;
+    const left = GOAL - game.score;
+    document.getElementById('nudgeTitle').textContent = game.score === NUDGE_AT[0]
+      ? `${game.score} cats! You're a natural.`
+      : `${game.score} cats! Only ${left} to go!`;
+    this.el.classList.add('show');
+  },
+  hide() {
+    this.open = false;
+    this.el.classList.remove('show');
+  },
+};
+
+// ---------- Demo: plays itself for the video ----------
+// It stacks all the way to 100 cats: real speed at the start, around the
+// 50-cat bonus and for the last few cats, fast-forwarded in between.
+const Demo = {
+  // Where cat N lands, as a share of a cat's width from the cat below
+  // (0 = Purrfect): a few near misses break the streaks, and a wobble
+  // near the top.
+  misses: { 9: 0.09, 21: -0.09, 33: 0.09, 45: -0.09, 62: 0.09, 74: -0.09, 86: 0.09, 97: 0.16, 98: -0.12 },
+  dropping: 0, prevDiff: null,
+  videoClock: 0, captionText: '', captionT: 0, captionDur: 0, ladderT: -1, done: false, endT: 0,
+  el: document.getElementById('caption'),
+  ladder: document.getElementById('ladder'),
+  /** How many times faster than real time the game runs now. */
+  get scale() {
+    const s = game.score;
+    if (game.phase === 'over' || s < 8 || (s >= 48 && s < 51) || s >= 96) return 1;
+    return 8;
+  },
+  caption(textValue, dur = 2.2) { this.captionText = textValue; this.captionT = 0; this.captionDur = dur; this.el.textContent = textValue; },
+  target() {
+    // Where the cat must be when dropped, allowing for the cushion's sway
+    // while it falls.
+    const cat = game.active;
+    const top = groundY() - game.tower.length * catH() + game.scrollTarget;
+    const fall = Math.max(0, top - (cat.y + catH() / 2));
+    const tf = Math.sqrt((2 * fall) / GRAVITY);
+    const support = game.tower.length ? game.tower[game.tower.length - 1].x : platformX();
+    const later = game.swayAmp * Math.sin(game.swayPhase + game.swaySpeed * tf);
+    const offset = (this.misses[game.score + 1] ?? 0) * catW();
+    return support + (later - game.platformOffset) + offset;
+  },
+  think() {
+    const diff = game.active.x - this.target();
+    const crossed = this.prevDiff !== null && Math.sign(diff) !== Math.sign(this.prevDiff);
+    this.prevDiff = diff;
+    if (crossed && game.swungFor > 0.15) {
+      // Drop at the moment it lined up (between two frames), as a
+      // well-timed tap would.
+      game.active.x -= diff;
+      drop(W * 0.62, H * 0.74);
+    }
+  },
+  dropped() { this.prevDiff = null; },
+  landed(perfect, earned) {
+    const s = game.score;
+    if (s === 3 && game.combo === 3) this.caption('Line them up for\na Purrfect!');
+    if (s === 4 && earned > 0) this.caption('Purrfect streaks\nearn treats!');
+    if (s === 12) this.caption('100% FREE to play');
+    if (s === 26) this.caption('No in-app purchases');
+    if (s === 40) this.caption('Play offline, anywhere');
+    if (s === 50) { this.caption('Higher stacks,\nbigger rewards!', 2.8); this.ladderT = 0; }
+    if (s === 70) this.caption('Collect 18 cute cats');
+    if (s === 80) this.caption('Faster every 20 cats…');
+    if (s === 89) this.caption('…and the cushion sways!');
+    if (s === 97) this.caption('Steady… steady…', 1.6);
+    if (s === 100) this.caption('100 cats!\n+1 Tuna!', 2);
+  },
+  fell() { this.caption('Noooo!', 1.2); },
+  /** One video frame: the game moves on [scale] frames' worth. */
+  advance(dt) {
+    const n = this.scale;
+    for (let i = 0; i < n; i++) update(dt);
+    this.videoClock += dt;
+    this.update(dt);
+    render();
+    if (n > 1) {
+      // A fast-forward badge.
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      rrect(ctx, W - 76, 16, 64, 30, 15); ctx.fillStyle = 'rgba(91,58,41,0.85)'; ctx.fill();
+      text('▶▶ 8×', W - 44, 31, 15, 900, '#fff', 'center', 'middle');
+    }
+    return this.done;
+  },
+  update(step) {
+    if (this.videoClock < 0.05 && !this.captionText) this.caption('Tap to drop the cat', 1.6);
+    this.captionT += step;
+    const t = this.captionT, d = this.captionDur;
+    const alpha = t < 0.15 ? t / 0.15 : t > d - 0.3 ? Math.max(0, (d - t) / 0.3) : 1;
+    const pop = t < 0.18 ? 0.7 + 0.3 * (t / 0.18) + 0.08 * Math.sin((t / 0.18) * Math.PI) : 1;
+    this.el.style.opacity = String(End.shown ? 0 : alpha);
+    this.el.style.transform = `scale(${pop})`;
+    // The rewards card under the caption, for 3 seconds from 50 cats.
+    if (this.ladderT >= 0) {
+      this.ladderT += step;
+      const lt = this.ladderT;
+      const la = lt < 0.2 ? lt / 0.2 : lt > 2.8 ? Math.max(0, (3.1 - lt) / 0.3) : 1;
+      this.ladder.style.opacity = String(la);
+      this.ladder.style.transform = `translateX(-50%) scale(${0.85 + 0.15 * Math.min(1, lt / 0.2)})`;
+    }
+    if (End.shown) { this.endT += step; if (this.endT > 4) this.done = true; }
+  },
+};
+
+// ---------- Start ----------
+document.getElementById('icon').src = ICON.startsWith('data:') ? ICON : '';
+document.getElementById('nudgeIcon').src = ICON.startsWith('data:') ? ICON : '';
+document.getElementById('cta').addEventListener('click', openStore);
+document.getElementById('topCta').addEventListener('click', openStore);
+document.getElementById('nudgeGo').addEventListener('click', openStore);
+document.getElementById('nudgeKeep').addEventListener('click', () => Nudge.hide());
+
+const SPEAKER_ON = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 4V6L7 10H3zm13.5 2A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>';
+const SPEAKER_OFF = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 4V6L7 10H3zm13.6 2 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>';
+const muteBtn = document.getElementById('mute');
+muteBtn.innerHTML = SPEAKER_ON;
+muteBtn.addEventListener('click', () => {
+  Sound.unlock();
+  Sound.on = !Sound.on;
+  muteBtn.innerHTML = Sound.on ? SPEAKER_ON : SPEAKER_OFF;
+});
+
+cv.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  Sound.unlock();
+  drop(e.clientX, e.clientY);
+});
+
+window.addEventListener('resize', resize);
+resize();
+
+if (DEMO) {
+  document.body.classList.add('demo');
+  // record.mjs steps the game one frame at a time.
+  window.__advance = (dt) => Demo.advance(dt);
+  window.__sounds = () => Sound.log;
+  window.__state = () => ({ score: game.score, stability: game.stability, clock: Demo.videoClock, treats: game.treats });
+  render();
+  if (!/[?&]record\b/.test(location.search)) {
+    let last = performance.now();
+    (function loop(now) { Demo.advance(Math.min(1 / 30, (now - last) / 1000)); last = now; requestAnimationFrame(loop); })(last);
+  }
+} else {
+  let last = performance.now();
+  (function loop(now) { update((now - last) / 1000); last = now; render(); requestAnimationFrame(loop); })(last);
+}
+</script>
+</body>
+</html>
