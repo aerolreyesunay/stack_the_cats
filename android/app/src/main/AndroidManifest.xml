@@ -59,12 +59,11 @@
                 <data android:scheme="@string/fb_login_protocol_scheme" />
             </intent-filter>
         </activity>
-        <!-- AdMob app id. This is Google's TEST app id: replace it with the
-             app id from your AdMob account before publishing (and the ad
-             unit ids in lib/ads/ad_service.dart). -->
+        <!-- AdMob app id for Stack the Cats. (Debug builds still use test
+             ad units: see lib/ads/ad_service.dart.) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-1771358565743257~3718652029" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

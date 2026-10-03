@@ -7,18 +7,22 @@ import '../audio/audio_manager.dart';
 import '../services/connectivity_service.dart';
 import 'ad_pacing.dart';
 
-/// AdMob ad unit ids.
-///
-/// These are Google's official TEST ads. Never show real ads while
-/// developing: tapping your own real ads can get the AdMob account banned.
-/// Before publishing, replace them with the ids from your AdMob account
-/// (and the app id in android/app/src/main/AndroidManifest.xml).
+/// AdMob ad unit ids: Stack the Cats' real ones in release builds, and
+/// Google's official TEST ads in debug and profile builds. Never show real
+/// ads while developing: tapping your own real ads can get the AdMob account
+/// banned. (The app id is in android/app/src/main/AndroidManifest.xml.)
 class AdIds {
   AdIds._();
 
-  static const banner = 'ca-app-pub-3940256099942544/9214589741';
-  static const interstitial = 'ca-app-pub-3940256099942544/1033173712';
-  static const rewarded = 'ca-app-pub-3940256099942544/5224354917';
+  static const banner = kReleaseMode
+      ? 'ca-app-pub-1771358565743257/8244220395'
+      : 'ca-app-pub-3940256099942544/9214589741';
+  static const interstitial = kReleaseMode
+      ? 'ca-app-pub-1771358565743257/4588880563'
+      : 'ca-app-pub-3940256099942544/1033173712';
+  static const rewarded = kReleaseMode
+      ? 'ca-app-pub-1771358565743257/8723566690'
+      : 'ca-app-pub-3940256099942544/5224354917';
 }
 
 /// Banners, a full-screen ad every few games, and optional rewarded ads
