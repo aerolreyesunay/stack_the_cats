@@ -308,11 +308,12 @@ class StackGame extends FlameGame {
   double get baseX => size.x / 2;
 
   /// Where the cushion is now: it sways from side to side (carrying the
-  /// tower) once the tower has 20 cats.
+  /// tower) once the tower has 20 cats, more the less stable the tower is.
   double get platformX => baseX + platformOffset;
   double platformOffset = 0;
   double _swayPhase = 0;
   double _swayAmplitude = 0;
+  double _swaySpeed = 0;
   double get baseW => catW * 1.4;
   double get hangY => 120 + catH; // where new cats swing (screen coords)
 
@@ -432,6 +433,7 @@ class StackGame extends FlameGame {
     platformOffset = 0;
     _swayPhase = 0;
     _swayAmplitude = 0;
+    _swaySpeed = 0;
     scroll = 0;
     scrollTarget = 0;
     phase = Phase.waiting;
@@ -687,10 +689,8 @@ class StackGame extends FlameGame {
       _speedMessage = 'Speed increased!';
       _speedMessageLeft = _speedMessageTime;
     }
-    if (CushionSway.at(score) != CushionSway.at(score - 1)) {
-      _speedMessage = score == CushionSway.step
-          ? 'Watch out: the cushion sways!'
-          : 'The cushion sways more!';
+    if (score == CushionSway.startAt) {
+      _speedMessage = 'Watch out: the cushion sways!';
       _speedMessageLeft = _speedMessageTime;
     }
     var earned = 0;
@@ -768,14 +768,19 @@ class StackGame extends FlameGame {
     return true;
   }
 
-  /// The cushion drifts from side to side, more every 20 cats (up to 100),
-  /// and the tower rides on it. The size of the sway eases in, so it never
-  /// jumps.
+  /// From 20 cats the cushion drifts from side to side, and the tower rides
+  /// on it: gently while the tower is balanced, wider and quicker the less
+  /// stable it is. Both the size and the speed of the sway ease towards
+  /// their targets, so it never jumps and visibly calms as the tower
+  /// steadies.
   void _swayPlatform(double step) {
     if (phase == Phase.over) return;
-    final sway = CushionSway.at(score);
-    _swayAmplitude += (sway.amplitude - _swayAmplitude) * min(1.0, step * 1.5);
-    if (sway.period > 0) _swayPhase += 2 * pi / sway.period * step;
+    final sway = CushionSway.at(score, balance.stability);
+    final ease = min(1.0, step * 1.5);
+    _swayAmplitude += (sway.amplitude - _swayAmplitude) * ease;
+    final speed = sway.period > 0 ? 2 * pi / sway.period : 0.0;
+    _swaySpeed += (speed - _swaySpeed) * ease;
+    _swayPhase += _swaySpeed * step;
     final next = _swayAmplitude * sin(_swayPhase);
     final moved = next - platformOffset;
     platformOffset = next;

@@ -64,17 +64,26 @@ void main() {
   });
 
   group('CushionSway', () {
-    test('still for 20 cats, then grows every 20 until 100', () {
-      expect(CushionSway.at(19).amplitude, 0);
-      final first = CushionSway.at(20);
-      final top = CushionSway.at(100);
-      expect(first.amplitude, greaterThan(0));
-      expect(top.amplitude, greaterThan(first.amplitude));
-      expect(top.period, lessThan(first.period));
-      expect(CushionSway.at(99), CushionSway.at(80));
-      // No faster or wider after 100 cats, and never fast.
-      expect(CushionSway.at(500), top);
-      expect(top.period, greaterThanOrEqualTo(3));
+    test('still before 20 cats, even if shaky', () {
+      expect(CushionSway.at(19, 0.2).amplitude, 0);
+    });
+
+    test('a balanced tower sways subtly from 20 cats', () {
+      final calm = CushionSway.at(20, 1);
+      expect(calm.amplitude, greaterThan(0));
+      expect(calm.amplitude, lessThanOrEqualTo(10));
+      expect(CushionSway.at(150, 1), calm);
+    });
+
+    test('the less stable, the wider and quicker; never fast', () {
+      final calm = CushionSway.at(40, 1);
+      final wobbly = CushionSway.at(40, 0.6);
+      final shaky = CushionSway.at(40, 0);
+      expect(wobbly.amplitude, greaterThan(calm.amplitude));
+      expect(shaky.amplitude, greaterThan(wobbly.amplitude));
+      expect(wobbly.period, lessThan(calm.period));
+      expect(shaky.period, lessThan(wobbly.period));
+      expect(shaky.period, greaterThanOrEqualTo(3));
     });
   });
 

@@ -155,19 +155,20 @@ class UseCounter {
 class CushionSway {
   CushionSway._();
 
-  /// It starts, then gets a little wider and quicker, every this many cats.
-  static const step = 20;
+  /// It starts swaying once the tower has this many cats.
+  static const startAt = 20;
 
-  /// It stops growing at this many cats.
-  static const maxAt = 100;
-
-  /// How it sways at [score] cats: [amplitude] px each way, one full swing
-  /// every [period] seconds. Still for the first 20 cats; at most 64 px and
-  /// 3 s per swing (from 100 cats), so it's never fast.
-  static ({double amplitude, double period}) at(int score) {
-    final level = min(score, maxAt) ~/ step;
-    if (level == 0) return (amplitude: 0, period: 0);
-    return (amplitude: 14.0 + 10 * level, period: 5.0 - 0.4 * level);
+  /// How it sways at [score] cats when the tower's stability is
+  /// [stability] (1 = perfectly balanced, 0 = about to topple):
+  /// [amplitude] px each way, one full swing every [period] seconds.
+  /// Still before 20 cats. From then on a perfectly balanced tower only
+  /// sways a little (6 px, 7 s per swing); the shakier it gets the wider
+  /// and quicker it sways (up to 70 px, 3 s), and it calms down again as
+  /// the player steadies it.
+  static ({double amplitude, double period}) at(int score, double stability) {
+    if (score < startAt) return (amplitude: 0, period: 0);
+    final shaky = 1 - stability.clamp(0.0, 1.0);
+    return (amplitude: 6.0 + 64 * shaky, period: 7.0 - 4 * shaky);
   }
 }
 
