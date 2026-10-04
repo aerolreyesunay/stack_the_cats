@@ -76,7 +76,7 @@ https://jcanstudios.github.io/stack-the-cats/privacy.html
 
 - App icon: 512 × 512 PNG (from assets/icon/app_icon.png)
 - Feature graphic: 1024 × 500: marketing/play-store/feature-graphic.png
-- Phone screenshots: at least 2, 9:16 (to take from the app)
+- Phone screenshots (1200 × 1790, from a real game): marketing/play-store/screenshots/, in order 1 to 5
 - Video: YouTube link to the ad video (optional)
 
 ---
