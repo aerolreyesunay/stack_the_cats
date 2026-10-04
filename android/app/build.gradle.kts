@@ -75,3 +75,9 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // The Facebook SDK the sign-in plugin uses (same version), so
+    // MainActivity can start it only when a player picks Facebook.
+    implementation("com.facebook.android:facebook-core:18.1.3")
+}

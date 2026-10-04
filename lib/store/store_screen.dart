@@ -207,6 +207,11 @@ Future<void> _notEnoughTreats(BuildContext context, int short) async {
   }
 }
 
+/// Two cards a row on a phone, more on a tablet, so cards stay a
+/// comfortable size.
+int _columns(BuildContext context) =>
+    (MediaQuery.sizeOf(context).width / 200).floor().clamp(2, 5);
+
 void _say(BuildContext context, String text) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
@@ -279,7 +284,7 @@ class _CatsTab extends StatelessWidget {
         for (final tier in sections) ...[
           _TierHeader(tier: tier),
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: _columns(context),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 10,
@@ -558,7 +563,7 @@ class _WallpapersTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return GridView.count(
       padding: const EdgeInsets.all(12),
-      crossAxisCount: 2,
+      crossAxisCount: _columns(context),
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
       childAspectRatio: 0.72,

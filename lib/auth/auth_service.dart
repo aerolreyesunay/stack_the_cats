@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -53,6 +54,9 @@ class AuthService {
   /// throws [FirebaseAuthException] 'account-exists-with-different-credential'
   /// (one account per email): they should sign in with Google instead.
   Future<User?> signInWithFacebook() async {
+    // The Facebook SDK only starts now (MainActivity.kt), so it never runs
+    // for players who don't pick Facebook, or in kids' mode.
+    await const MethodChannel('stack_the_cats/facebook').invokeMethod('start');
     final login = await FacebookAuth.instance.login(
       permissions: const ['public_profile', 'email'],
     );
@@ -97,9 +101,13 @@ class AuthService {
   bool _kidsListening = false;
 
   Future<void> signOut() async {
+    final wasFacebook =
+        currentUser?.providerData.any((p) => p.providerId == 'facebook.com') ??
+        false;
     await _auth.signOut();
     try {
-      await FacebookAuth.instance.logOut();
+      // Only if Facebook was used (it's not started otherwise).
+      if (wasFacebook) await FacebookAuth.instance.logOut();
     } catch (e) {
       debugPrint('Facebook sign-out failed: $e');
     }
