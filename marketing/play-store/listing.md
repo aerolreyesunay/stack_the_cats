@@ -15,7 +15,7 @@ Stack the Cats
 **Short description** (80 max)
 
 ```
-Tap, drop and balance cute cats into a tall tower. Free, no in-app purchases!
+Tap, drop and balance cute cats into a tall tower. How high can you stack?
 ```
 
 **Full description** (4,000 max)
@@ -59,7 +59,7 @@ How high can you stack?
 
 **App category:** Game → Casual
 
-**Tags** (pick up to 5 Play offers that match): Casual, Stacking, Physics, Animals, Cute
+**Tags:** Arcade, Casual, Physics-based
 
 **Contact details**
 
@@ -74,10 +74,11 @@ https://jcanstudios.github.io/stack-the-cats/privacy.html
 
 **Graphics**
 
-- App icon: 512 × 512 PNG (from assets/icon/app_icon.png)
+- App icon: 512 × 512 PNG: marketing/play-store/app-icon-512.png
 - Feature graphic: 1024 × 500: marketing/play-store/feature-graphic.png
 - Phone screenshots (1200 × 1790, from a real game): marketing/play-store/screenshots/, in order 1 to 5
 - Video: YouTube link to the ad video (optional)
+- AI asset declaration: "Label assets as created or edited using AI", with the icon, feature graphic and screenshots ticked (the game's art was made with Claude)
 
 ---
 

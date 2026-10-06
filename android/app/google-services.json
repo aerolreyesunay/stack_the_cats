@@ -31,6 +31,14 @@
           }
         },
         {
+          "client_id": "518572323752-rp09sn5k9224seldr2blkth4qav4dlhc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jcanstudios.stackthecats",
+            "certificate_hash": "b2e4cc9247bba4f10a5e59f9a91eb41e27c1fc95"
+          }
+        },
+        {
           "client_id": "518572323752-thl7si6vu0rmrvfcgumoien5tf5d1tmb.apps.googleusercontent.com",
           "client_type": 3
         }
