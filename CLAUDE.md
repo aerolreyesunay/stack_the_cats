@@ -74,7 +74,7 @@ firebase deploy --only functions,firestore:rules,database
 - `firebase login` has to be run by the user in their own terminal.
 - **Every Play upload needs a higher build number** in `pubspec.yaml` (`1.0.0+5` → `1.0.0+6` and so on). The part before `+` (`1.0.0`) is the version players see; it's a label and can stay the same, but the build number must always go up and never resets.
 - A bundle already uploaded to one track (say Internal testing) is in Play's library: use **Add from library** on other tracks instead of uploading it again ("Version code already used").
-- If Gradle fails with "PKIX path building failed" / SSL errors while downloading new libraries, that's Claude's sandboxed shell, not the project: run the build in your own terminal.
+- **Norton Antivirus scans HTTPS** with its own root certificate, which Java and git don't trust by default ("PKIX path building failed" / SSL errors when Gradle downloads new libraries, or on `git push`). Fixed on this PC (2026-10-07): Gradle uses `C:/Users/aerol/.gradle/trusted-cacerts.jks` (Java's list plus Norton's root, set in `~/.gradle/gradle.properties`), and git uses Windows' certificates (`git config --global http.sslBackend schannel`). After an Android Studio update replaces Java, or if Norton renews its root, rebuild that file: copy the new `jbr/lib/security/cacerts` and import `~/.gradle/norton-root.cer` with keytool.
 - Debug builds use Google's test ad IDs, and release builds use the real ones (`lib/ads/ad_service.dart`). Never tap real ads on your own device. Add test devices in AdMob instead.
 
 ## Signing and secrets
