@@ -303,6 +303,13 @@ class StackGame extends FlameGame {
   /// Whether the game over card is up. The HUD hides its buttons then.
   final ValueNotifier<bool> isOver = ValueNotifier(false);
 
+  /// Whether the stability meter is in the red. The HUD then nudges the
+  /// player towards Realign.
+  final ValueNotifier<bool> towerInDanger = ValueNotifier(false);
+
+  /// Below this stability (%) the meter turns red.
+  static const dangerPercent = 40;
+
   double scroll = 0; // how far the view has moved up
   double scrollTarget = 0;
   double time = 0;
@@ -469,10 +476,14 @@ class StackGame extends FlameGame {
   /// Cats left before a guest run (or a Self Challenge) reaches its limit.
   int get catsToGo => max(0, (rules.maxScore ?? 0) - score);
 
+  /// Only normal games show and save a best (not guests, live challenges
+  /// or the Self Challenge).
+  bool get _showsBest =>
+      !isGuestRun && !rules.isChallenge && !rules.isSelfChallenge;
+
   /// Saves the score as the best if it beats it. Safe to call repeatedly.
   void _saveBest() {
-    // Only normal games count towards the saved best.
-    if (isGuestRun || rules.isChallenge || rules.isSelfChallenge) return;
+    if (!_showsBest) return;
     if (score > best) {
       best = score;
       newBest = true;
@@ -645,6 +656,10 @@ class StackGame extends FlameGame {
     );
     // The needle glides rather than jumps.
     _shownTilt += (balance.tilt - _shownTilt) * min(1.0, step * 8);
+    towerInDanger.value =
+        phase != Phase.over &&
+        tower.length >= 2 &&
+        balance.percent < dangerPercent;
   }
 
   void _checkLanding(Cat cat) {
@@ -967,15 +982,24 @@ class StackGame extends FlameGame {
       );
     }
 
-    // Score display
+    // Score display, with the best to beat above it in normal games (once
+    // there is one).
+    if (_showsBest && best > 0) {
+      _smallPaint.render(
+        canvas,
+        score > best ? 'New best!' : 'Best $best',
+        Vector2(size.x / 2, 8),
+        anchor: Anchor.topCenter,
+      );
+    }
     _scorePaint.render(
       canvas,
       '$score',
       Vector2(size.x / 2, 30),
       anchor: Anchor.topCenter,
     );
-    // Guests (and the Self Challenge) see how many cats are left instead
-    // of their best; double treats show there while they last.
+    // Guests (and the Self Challenge) see how many cats are left under the
+    // score; double treats show there while they last.
     if (payoutBonusActive) {
       final left = ((_bonusUntilMs - time * 1000) / 1000).ceil();
       _bonusPaint.render(
@@ -984,12 +1008,10 @@ class StackGame extends FlameGame {
         Vector2(size.x / 2, 86),
         anchor: Anchor.topCenter,
       );
-    } else {
+    } else if (rules.maxScore != null) {
       _smallPaint.render(
         canvas,
-        rules.maxScore != null
-            ? '$catsToGo ${catsToGo == 1 ? 'cat' : 'cats'} to go'
-            : 'Best $best',
+        '$catsToGo ${catsToGo == 1 ? 'cat' : 'cats'} to go',
         Vector2(size.x / 2, 88),
         anchor: Anchor.topCenter,
       );
@@ -1034,7 +1056,7 @@ class StackGame extends FlameGame {
     final b = balance;
     final color = b.percent >= 70
         ? const Color(0xFF3E9B5B)
-        : b.percent >= 40
+        : b.percent >= dangerPercent
         ? const Color(0xFFE09B2D)
         : const Color(0xFFD64933);
     final wobbly = b.percent < 50 && b.side != 0;

@@ -23,6 +23,8 @@ import '../store/wallpapers.dart';
 import '../ui/treat_confetti.dart';
 import '../services/player_service.dart';
 import '../ui/game_over_overlay.dart';
+import '../ui/hud_button.dart';
+import '../ui/hud_tour.dart';
 import '../ui/treats_ui.dart';
 
 /// The screen that holds the actual game.
@@ -172,6 +174,7 @@ class _GameScreenState extends State<GameScreen> {
     // Leaving the game: nothing from it keeps playing over the menu.
     AudioManager.instance.stopAllSfx();
     _game.canRealign.dispose();
+    _game.towerInDanger.dispose();
     _game.isOver.removeListener(_onOverChanged);
     _player.player.removeListener(_onPlayerChanged);
     _game.isOver.dispose();
@@ -425,6 +428,7 @@ class _GameScreenState extends State<GameScreen> {
         onHome: _confirmHome,
         onSettings: _openSettings,
         onStore: _openStore,
+        showTour: false,
       ),
       StackGame.limitOverlay: result,
       StackGame.gameOverOverlay: result,
@@ -440,6 +444,7 @@ class _GameScreenState extends State<GameScreen> {
         onHome: _confirmHome,
         onSettings: _openSettings,
         onStore: _openStore,
+        showTour: true,
       ),
       StackGame.limitOverlay: (context, game) => LimitReachedOverlay(
         game: game,
@@ -456,9 +461,10 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
-/// Home, Restart and Settings down the left; the treat balance and the
-/// Realign button down the right.
-class _Hud extends StatelessWidget {
+/// Home, Restart and Settings down the left; the treat balance, Realign and
+/// the Store down the right. In normal games, first-time players get a
+/// walkthrough of these buttons.
+class _Hud extends StatefulWidget {
   const _Hud({
     required this.game,
     required this.onRealign,
@@ -466,6 +472,7 @@ class _Hud extends StatelessWidget {
     required this.onHome,
     required this.onSettings,
     required this.onStore,
+    required this.showTour,
   });
 
   final StackGame game;
@@ -476,6 +483,126 @@ class _Hud extends StatelessWidget {
   /// Null hides Restart (the Self Challenge restarts from its result card).
   final VoidCallback? onRestart;
   final VoidCallback onHome;
+
+  /// Whether to walk first-time players through the buttons.
+  final bool showTour;
+
+  @override
+  State<_Hud> createState() => _HudState();
+}
+
+class _HudState extends State<_Hud> {
+  final _home = GlobalKey();
+  final _restart = GlobalKey();
+  final _settings = GlobalKey();
+  final _treats = GlobalKey();
+  final _realign = GlobalKey();
+  final _store = GlobalKey();
+
+  /// The walkthrough on screen, if any.
+  List<HudTourStep>? _tour;
+
+  StackGame get game => widget.game;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showTour) _startTourIfNew();
+  }
+
+  List<HudTourStep> get _allSteps => [
+    HudTourStep(
+      id: 'home',
+      target: _home,
+      title: 'Main menu',
+      body: 'Leave the game any time. Treats you earned are kept.',
+    ),
+    HudTourStep(
+      id: 'restart',
+      target: _restart,
+      title: 'Restart',
+      body: 'Start a fresh tower whenever you like.',
+    ),
+    HudTourStep(
+      id: 'settings',
+      target: _settings,
+      title: 'Settings',
+      body: 'Sound, music, wallpapers and your account.',
+    ),
+    HudTourStep(
+      id: 'treats',
+      target: _treats,
+      title: 'Treats and fish',
+      body:
+          'Purrfect landings earn treats. Tuna and Salmon are rare rewards '
+          'for big towers and streaks.',
+    ),
+    HudTourStep(
+      id: 'realign',
+      target: _realign,
+      title: 'Realign',
+      body:
+          'Tower leaning? Straighten every cat back into a neat column. Pay '
+          'with treats, a Tuna or a free ad, once you have 2 cats.',
+    ),
+    HudTourStep(
+      id: 'store',
+      target: _store,
+      title: 'Store',
+      body: 'Spend your treats on new cats and cozy wallpapers.',
+    ),
+  ];
+
+  /// Shows the walkthrough for buttons on screen that haven't been
+  /// explained yet, if the run hasn't started.
+  Future<void> _startTourIfNew() async {
+    // Give the HUD (and a signed-in player's balance and buttons) a
+    // moment to appear.
+    for (var tries = 0; tries < 8; tries++) {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+      final signedIn = AuthService.instance.currentUser != null;
+      if (!signedIn || PlayerService.instance.player.value != null) break;
+    }
+    final seen = await HudTour.seen();
+    if (seen == null || !mounted || _runStarted) return;
+    final steps = [
+      for (final step in _allSteps)
+        if (!seen.contains(step.id) && _onScreen(step.target)) step,
+    ];
+    if (steps.isEmpty) return;
+    game.pauseEngine();
+    setState(() => _tour = steps);
+  }
+
+  /// Once the first cat has dropped, the walkthrough waits for next time.
+  bool get _runStarted =>
+      game.isOver.value || game.tower.isNotEmpty || game.phase == Phase.falling;
+
+  static bool _onScreen(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    return box != null && box.hasSize && box.size.width > 0;
+  }
+
+  /// Done or skipped: those buttons aren't explained again.
+  void _endTour() {
+    final steps = _tour;
+    if (steps == null) return;
+    HudTour.markSeen(steps.map((s) => s.id));
+    setState(() => _tour = null);
+    game.resumeEngine();
+  }
+
+  /// Realign is worth a nudge when the tower is in the red and the player
+  /// can pay for it some way.
+  bool _suggestRealign(PlayerData player) {
+    if (!game.canRealign.value || !game.towerInDanger.value) return false;
+    final uses = game.realigns;
+    return (player.treats >= Treats.realignCost &&
+            uses.canUse(PayWith.treats)) ||
+        (player.tuna > 0 && uses.canUse(PayWith.fish)) ||
+        (AdService.instance.rewardedReady.value && uses.canUse(PayWith.ad));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -493,24 +620,27 @@ class _Hud extends StatelessWidget {
                 // Stacked down the left edge, clear of the score.
                 : Column(
                     children: [
-                      _HudIconButton(
+                      HudButton(
+                        key: _home,
                         icon: Icons.home_rounded,
                         tooltip: 'Main menu',
-                        onPressed: onHome,
+                        onPressed: widget.onHome,
                       ),
-                      if (onRestart case final restart?) ...[
-                        const SizedBox(height: 6),
-                        _HudIconButton(
+                      if (widget.onRestart case final restart?) ...[
+                        const SizedBox(height: 10),
+                        HudButton(
+                          key: _restart,
                           icon: Icons.refresh_rounded,
                           tooltip: 'Restart',
                           onPressed: restart,
                         ),
                       ],
-                      const SizedBox(height: 6),
-                      _HudIconButton(
+                      const SizedBox(height: 10),
+                      HudButton(
+                        key: _settings,
                         icon: Icons.settings_rounded,
                         tooltip: 'Settings',
-                        onPressed: onSettings,
+                        onPressed: widget.onSettings,
                       ),
                     ],
                   ),
@@ -522,34 +652,51 @@ class _Hud extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const TreatBalance(),
+              KeyedSubtree(key: _treats, child: const TreatBalance()),
               // Realign, under the balance. Signed-in players only; greyed
               // out until the tower has two cats (and while one is falling).
               ListenableBuilder(
                 listenable: Listenable.merge([
                   player,
                   game.canRealign,
+                  game.towerInDanger,
                   game.isOver,
+                  AdService.instance.rewardedReady,
                 ]),
                 builder: (context, _) {
-                  if (player.value == null || game.isOver.value) {
+                  final data = player.value;
+                  if (data == null || game.isOver.value) {
                     return const SizedBox.shrink();
                   }
                   // The tip hangs below Realign (clear of the score), and
                   // the Store sits under them.
                   return Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.only(top: 10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         if (game.rules.allowRealign) ...[
-                          _RealignButton(
-                            onPressed: game.canRealign.value ? onRealign : null,
+                          AttentionPulse(
+                            active: _suggestRealign(data),
+                            child: HudButton(
+                              key: _realign,
+                              icon: Icons.align_vertical_center_rounded,
+                              tooltip: 'Realign',
+                              onPressed: game.canRealign.value
+                                  ? widget.onRealign
+                                  : null,
+                            ),
                           ),
                           _RealignTip(canRealign: game.canRealign),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                         ],
-                        _StoreButton(onPressed: onStore),
+                        HudButton(
+                          key: _store,
+                          icon: Icons.storefront_rounded,
+                          tooltip: 'Store',
+                          accent: true,
+                          onPressed: widget.onStore,
+                        ),
                       ],
                     ),
                   );
@@ -558,34 +705,11 @@ class _Hud extends StatelessWidget {
             ],
           ),
         ),
+        if (_tour case final steps?)
+          Positioned.fill(
+            child: HudTour(steps: steps, onFinished: _endTour),
+          ),
       ],
-    );
-  }
-}
-
-class _HudIconButton extends StatelessWidget {
-  const _HudIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    const brown = Color(0xFF5B3A29);
-    return IconButton.filled(
-      tooltip: tooltip,
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: brown,
-        side: BorderSide(color: brown.withAlpha(40)),
-      ),
-      onPressed: onPressed,
-      icon: Icon(icon),
     );
   }
 }
@@ -729,27 +853,6 @@ class _RealignTipState extends State<_RealignTip> {
   }
 }
 
-/// The Store button under Realign.
-class _StoreButton extends StatelessWidget {
-  const _StoreButton({required this.onPressed});
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    const brown = Color(0xFF5B3A29);
-    return IconButton.filled(
-      tooltip: 'Store',
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: brown,
-        side: BorderSide(color: brown.withAlpha(90)),
-      ),
-      onPressed: onPressed,
-      icon: const Icon(Icons.storefront_rounded),
-    );
-  }
-}
-
 class _ArrowPainter extends CustomPainter {
   const _ArrowPainter(this.color);
   final Color color;
@@ -767,30 +870,6 @@ class _ArrowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ArrowPainter old) => old.color != color;
-}
-
-/// The round Realign button under the treat balance.
-class _RealignButton extends StatelessWidget {
-  const _RealignButton({required this.onPressed});
-
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    const brown = Color(0xFF5B3A29);
-    return IconButton.filled(
-      tooltip: 'Realign',
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: brown,
-        disabledBackgroundColor: Colors.white.withAlpha(150),
-        disabledForegroundColor: brown.withAlpha(90),
-        side: BorderSide(color: brown.withAlpha(onPressed != null ? 90 : 30)),
-      ),
-      onPressed: onPressed,
-      icon: const Icon(Icons.align_vertical_center_rounded),
-    );
-  }
 }
 
 /// "Realign your tower?" — pay with treats or a Tuna, or watch an ad.
