@@ -10,6 +10,7 @@ import '../store/catalog.dart';
 import '../store/store_screen.dart';
 import '../economy/treats.dart';
 import '../services/age_gate.dart';
+import '../services/app_update_service.dart';
 import '../services/friends_service.dart';
 import '../services/player_service.dart';
 import '../ui/account_panel.dart';
@@ -48,6 +49,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     _friendsJoined.addListener(_showFriendsJoined);
     _accepted.addListener(_showRequestsAccepted);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdateService.instance.checkOnce();
       _maybeShowWelcome();
       _maybeShowDaily();
       _showFriendsJoined();
@@ -208,6 +210,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           children: [
             Center(child: _menu()),
             Positioned(top: 12, right: 12, child: _header()),
+            const Positioned(
+              left: 16,
+              right: 16,
+              bottom: 12,
+              child: _UpdateReadyBar(),
+            ),
           ],
         ),
       ),
@@ -564,4 +572,51 @@ class _MenuCatsPainter extends CustomPainter {
   @override
   bool shouldRepaint(_MenuCatsPainter old) =>
       old.introTime != introTime || old.hopTime != hopTime;
+}
+
+/// "A new version is ready" with Restart, once an update from Google Play
+/// has downloaded in the background. Only on the main menu, never mid-game.
+class _UpdateReadyBar extends StatelessWidget {
+  const _UpdateReadyBar();
+
+  @override
+  Widget build(BuildContext context) {
+    final updates = AppUpdateService.instance;
+    return ValueListenableBuilder<bool>(
+      valueListenable: updates.readyToInstall,
+      builder: (context, ready, _) => !ready
+          ? const SizedBox.shrink()
+          : Material(
+              color: _brown,
+              elevation: 6,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.system_update_rounded,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'A new version is ready.',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: _accent),
+                      onPressed: updates.install,
+                      child: const Text('Restart'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
 }
