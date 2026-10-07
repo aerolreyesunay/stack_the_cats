@@ -424,6 +424,25 @@ describe('leaderboard and invites', () => {
     assert.equal((await p.wallet()).landingsTotal, 30);
   });
 
+  test('the board shows first name and last initial, and old full names catch up', async () => {
+    const p = await newPlayer(0);
+    await db.doc(`users/${p.uid}`).update({ displayName: '  Maria  Clara de la Cruz ' });
+    const first = await p.call('startGame', { mode: 'normal' });
+    await ageGame(first.gameId, 120000);
+    await p.call('landings', { gameId: first.gameId, landings: Array.from({ length: 20 }, () => basic(0)) });
+    assert.equal((await db.doc(`scores/${p.uid}`).get()).data().name, 'Maria C.');
+
+    // An entry written with the full name (as before) is shortened on the
+    // next game, even one that doesn't beat the best.
+    await db.doc(`scores/${p.uid}`).update({ name: 'Maria Clara de la Cruz' });
+    const next = await p.call('startGame', { mode: 'normal' });
+    await ageGame(next.gameId, 120000);
+    await p.call('landings', { gameId: next.gameId, landings: [basic(0)] });
+    const entry = (await db.doc(`scores/${p.uid}`).get()).data();
+    assert.equal(entry.name, 'Maria C.');
+    assert.equal(entry.best, 20);
+  });
+
   test('a pair of friends earns the bonus once, even if re-friended', async () => {
     const a = await newPlayer(0);
     const b = await newPlayer(0);
@@ -524,6 +543,20 @@ describe('rules', () => {
       body: JSON.stringify({ fields: { uid: { stringValue: p.uid }, best: { integerValue: '9999' } } }),
     });
     assert.equal(res.status, 403);
+  });
+
+  test('full names in profiles are for the player and their friends only', async () => {
+    const [a, b, stranger] = [await newPlayer(), await newPlayer(), await newPlayer()];
+    await db.doc(`profiles/${a.uid}`).set({ name: 'Aerol Unay', photoUrl: null });
+    const pair = [a.uid, b.uid].sort();
+    await db.doc(`friendships/${pair.join('_')}`).set({ members: pair });
+    const read = (p) =>
+      fetch(`${firestoreRest}/profiles/${a.uid}`, {
+        headers: { authorization: `Bearer ${p.idToken}` },
+      });
+    assert.equal((await read(a)).status, 200);
+    assert.equal((await read(b)).status, 200);
+    assert.equal((await read(stranger)).status, 403);
   });
 
   test('the app cannot change its own treats', async () => {

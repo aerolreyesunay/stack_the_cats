@@ -78,13 +78,15 @@ firebase deploy --only functions,firestore:rules,database
 
 - Play Console: personal developer account "JCAN Studios".
 - **Internal testing:** build 2 is live.
-- **Closed testing (Alpha):** build 2 plus all store and policy forms sent for Google review on 2026-10-06.
-- **Next:** once approved, send the opt-in link to **12+ real testers** (Android and Gmail). They must stay opted in for **14 days in a row**, and then you can apply for production. Your own accounts shouldn't count toward the 12.
+- **Closed testing (Alpha):** approved and live with build 2 (sent for review 2026-10-06). 6 testers opted in as of 2026-10-07. Build 3 (best score, button walkthrough, Realign nudge, new buttons) uploaded 2026-10-07. Build 4 adds short names ("First L.") for non-friends; the server and rules for it were deployed 2026-10-07.
+- **Next:** get to **12+ real testers** (Android and Gmail) through the opt-in link. They must stay opted in for **14 days in a row**, and then you can apply for production. Your own accounts shouldn't count toward the 12.
 - **AdMob:** payment profile done, account verification pending. Link the app to the store in AdMob only **after** it's public in production. Until then, no real ads are served.
 - Play review sign-in account: `jcan.stackthecatsreview@gmail.com` (the password is only in Play Console).
 - Store category: Casual. Tags: Arcade, Casual, Physics-based. Assets are labelled as AI-generated.
 
 ## Ideas for later
+
+- Testers say treats feel limited. The daily cap (2000 treats from games) is probably not being hit; basic-cat Purrfects pay 0 and streaks start at the 4th Purrfect, so normal play earns slowly. An idea: pay 2 per basic Purrfect, start streaks at the 3rd, maybe raise the cap to 3000. Keep a cap: it bounds bots that slip past the bot checks (and protects wagers). Check `earnedTreats`/`earnDay` in `users/{id}` first.
 
 - Report and block players (leaderboards and matches). Google's content rating questions asked about this.
 - Firebase Analytics for retention (update the Data safety form and keep it out of kids' mode).

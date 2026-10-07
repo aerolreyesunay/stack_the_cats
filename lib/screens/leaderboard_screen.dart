@@ -82,7 +82,10 @@ class _BoardViewState extends State<_BoardView>
             return null;
           },
         );
-    final entries = await _service.top(widget.board);
+    final entries = await _service.withFullNames(
+      await _service.top(widget.board),
+      FriendsService.instance.friendIds.value,
+    );
     return _BoardData(entries, await me);
   }
 

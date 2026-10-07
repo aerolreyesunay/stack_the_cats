@@ -271,10 +271,16 @@ export function kidName(uid: string): string {
   return `${kidAdjectives[h % 16]} ${kidNouns[(h >>> 4) % 16]} ${10 + ((h >>> 8) % 90)}`;
 }
 
+/** How a player shows to people who aren't their friends: first name and
+ * the initial of the last name ("Aerol U."). Friends see the full name
+ * (from profiles). The same as the app's publicName. */
 export function boardName(name: unknown): string {
-  const trimmed = typeof name === 'string' ? name.trim() : '';
-  if (!trimmed) return 'Cat stacker';
-  return trimmed.length > 40 ? trimmed.slice(0, 40) : trimmed;
+  const words = typeof name === 'string' ? name.trim().split(/\s+/).filter(Boolean) : [];
+  if (words.length === 0) return 'Cat stacker';
+  const first = Array.from(words[0]).slice(0, 30).join('');
+  if (words.length === 1) return first;
+  const initial = Array.from(words[words.length - 1])[0].toUpperCase();
+  return `${first} ${initial}.`;
 }
 
 // ---------- Anti-bot ----------

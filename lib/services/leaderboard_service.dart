@@ -43,9 +43,15 @@ class LeaderboardEntry {
   });
 
   final String uid;
+
+  /// "First L." (kids: their made-up name). Swapped for the full name for
+  /// friends and the player themself, see [LeaderboardService.withFullNames].
   final String name;
   final String? photoUrl;
   final int score;
+
+  LeaderboardEntry withName(String name) =>
+      LeaderboardEntry(uid: uid, name: name, photoUrl: photoUrl, score: score);
 
   factory LeaderboardEntry.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
     final data = d.data() ?? const {};
@@ -119,6 +125,30 @@ class LeaderboardService {
         .limit(topCount)
         .get();
     return snap.docs.map(LeaderboardEntry.fromDoc).toList();
+  }
+
+  /// The board shows everyone as "First L."; friends (and the player
+  /// themself) see each other's full names, from their profiles, which
+  /// only friends can read. A name that can't be read stays short.
+  Future<List<LeaderboardEntry>> withFullNames(
+    List<LeaderboardEntry> entries,
+    Set<String> friendIds,
+  ) async {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null) return entries;
+    Future<LeaderboardEntry> full(LeaderboardEntry e) async {
+      if (e.uid != me && !friendIds.contains(e.uid)) return e;
+      try {
+        final doc = await _db.collection('profiles').doc(e.uid).get();
+        final name = (doc.data()?['name'] as String?)?.trim() ?? '';
+        return name.isEmpty ? e : e.withName(name);
+      } catch (err) {
+        debugPrint('Reading a friend\'s name failed: $err');
+        return e;
+      }
+    }
+
+    return Future.wait(entries.map(full));
   }
 
   /// The signed-in player's rank, or null if they're signed out or have no

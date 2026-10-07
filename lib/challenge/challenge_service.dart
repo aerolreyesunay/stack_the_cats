@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import '../auth/auth_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/player_service.dart';
+import '../services/public_name.dart';
 import '../services/server_api.dart';
 import 'match_rules.dart';
 
@@ -257,7 +258,8 @@ class ChallengeService {
   Future<void> _writePresence(User user, Presence p) =>
       _rtdb.ref('status/${user.uid}').set({
         'state': p.name,
-        'name': _displayName(user),
+        // Any signed-in player can read this: first name and initial only.
+        'name': publicName(user.displayName),
         'changedAt': ServerValue.timestamp,
       });
 
@@ -284,8 +286,6 @@ class ChallengeService {
           orElse: () => Presence.offline,
         );
       });
-
-  String displayName(User user) => _displayName(user);
 
   String _displayName(User user) {
     final name = user.displayName?.trim() ?? '';
@@ -622,7 +622,8 @@ class MatchFinder {
   Future<void> _join() async {
     await _mine.onDisconnect().remove();
     await _mine.set({
-      'name': _service.displayName(_user),
+      // Random opponents aren't friends: first name and initial only.
+      'name': publicName(_user.displayName),
       'photo': _user.photoURL,
       'at': ServerValue.timestamp,
     });
@@ -656,7 +657,7 @@ class MatchFinder {
         ...value,
         'matchId': matchId,
         'by': _me,
-        'byName': _service.displayName(_user),
+        'byName': publicName(_user.displayName),
       });
     });
     return result.committed;
@@ -678,7 +679,7 @@ class MatchFinder {
       'stake': stakes.wager,
       'players': {
         _me: _service._newPlayer(
-          _service.displayName(_user),
+          publicName(_user.displayName),
           _user.photoURL,
           joined: false,
         ),

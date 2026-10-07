@@ -454,7 +454,15 @@ const actions: Record<string, Handler> = {
             flagged,
           });
           if (onBoard && score > allTimeBest) t.set(bestRef, entry);
+          else if (bestDoc.exists && bestDoc.data()?.name !== entry.name) {
+            // Entries from before names were shortened (or after a name
+            // change) catch up the next time the player plays.
+            t.update(bestRef, { name: entry.name, photoUrl: entry.photoUrl });
+          }
           if (onBoard && score > weekBest) t.set(weekRef, entry);
+          else if (weekDoc.exists && weekDoc.data()?.name !== entry.name) {
+            t.update(weekRef, { name: entry.name, photoUrl: entry.photoUrl });
+          }
         },
         result: { score, treats, tuna, salmon, flagged },
       };

@@ -9,6 +9,7 @@ import '../auth/auth_service.dart';
 import '../economy/invites.dart';
 import '../economy/treats.dart';
 import 'player_service.dart';
+import 'public_name.dart';
 
 /// A friend as shown in the friends list.
 class Friend {
@@ -317,7 +318,8 @@ class FriendsService {
     await _db.collection('friendRequests').doc('${me.uid}_$to').set({
       'from': me.uid,
       'to': to,
-      'fromName': _displayName(me),
+      // Not friends yet: first name and last initial only.
+      'fromName': publicName(me.displayName),
       'fromPhoto': me.photoURL,
       'createdAt': FieldValue.serverTimestamp(),
     });
