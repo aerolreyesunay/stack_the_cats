@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../ads/ad_service.dart';
 import '../economy/treats.dart';
 import '../game/stack_game.dart';
+import '../services/age_gate.dart';
 import '../services/player_service.dart';
+import '../store/catalog.dart';
+import 'share_result.dart';
 import 'treats_ui.dart';
 
 const _brown = Color(0xFF5B3A29);
@@ -134,6 +137,34 @@ class _GameOverOverlayState extends State<GameOverOverlay> {
               onPressed: _reviving ? null : widget.onPlayAgain ?? game.restart,
               child: const Text('Stack again', style: TextStyle(fontSize: 18)),
             ),
+            // Kids' mode doesn't post to social media.
+            if (game.score > 0 && !AgeGate.instance.isKid) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _brown,
+                  side: const BorderSide(color: treatColor, width: 1.5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
+                onPressed: _reviving
+                    ? null
+                    : () => showShareResult(
+                        context,
+                        score: game.score,
+                        pool:
+                            PlayerService.instance.player.value?.catPool ??
+                            Cats.basic,
+                      ),
+                icon: const Icon(Icons.share_rounded, color: treatColor),
+                label: const Text(
+                  'Share my stack',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             TextButton(
               onPressed: _reviving ? null : widget.onMenu ?? game.onExitToMenu,

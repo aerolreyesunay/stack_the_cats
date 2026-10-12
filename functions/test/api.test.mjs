@@ -250,6 +250,29 @@ describe('anti-bot', () => {
     assert.equal((await db.doc(`scores/${p.uid}`).get()).data().best, 100);
   });
 
+  test('a video or a Salmon raises the daily limit by 2000, three times a day', async () => {
+    const p = await newPlayer(0);
+    await db.doc(`users/${p.uid}`).update({ earnDay: today, earnedTreats: 2000, salmon: 1 });
+    const { gameId } = await p.call('startGame', { mode: 'normal' });
+    await ageGame(gameId, 120000);
+    // At the limit: 50 cats pay nothing.
+    const capped = await p.call('landings', { gameId, landings: Array.from({ length: 50 }, () => basic(0)) });
+    assert.equal(capped.treats, 0);
+
+    assert.deepEqual(await p.call('boostEarnLimit', { payWith: 'ad' }), { boosts: 1 });
+    // Now a Purrfect streak pays again (10 treats from the 4th Purrfect on).
+    const boosted = await p.call('landings', { gameId, landings: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(basic) });
+    assert.equal(boosted.treats, 70);
+
+    // A Salmon works when there's no video; then one more video; then no more today.
+    assert.deepEqual(await p.call('boostEarnLimit', { payWith: 'salmon' }), { boosts: 2 });
+    assert.equal((await p.wallet()).salmon, 0);
+    await rejects(p.call('boostEarnLimit', { payWith: 'salmon' }), 'not-enough-salmon');
+    assert.deepEqual(await p.call('boostEarnLimit', { payWith: 'ad' }), { boosts: 3 });
+    await rejects(p.call('boostEarnLimit', { payWith: 'ad' }), 'daily-limit');
+    await rejects(p.call('boostEarnLimit', { payWith: 'treats' }), 'bad-payWith');
+  });
+
   test('nearly all Purrfect: the game pays nothing and is flagged', async () => {
     const p = await newPlayer(0);
     const { gameId } = await p.call('startGame', { mode: 'normal' });

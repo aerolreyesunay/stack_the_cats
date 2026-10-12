@@ -202,6 +202,22 @@ const actions: Record<string, Handler> = {
     });
   },
 
+  /** Raises today's treat limit from games, after a video or for a Salmon
+   * (when no video is available), a few times a day. */
+  async boostEarnLimit(uid, data) {
+    const payWith = oneOf(data.payWith, ['ad', 'salmon'] as const, 'payWith');
+    return walletOp(uid, opIdOf(data), async (_tx, user) => {
+      const today = eco.utcDay(Date.now());
+      const count = user.boostDay === today ? int(user.boostCount) : 0;
+      if (count >= eco.earnLimitBoost.perDay) fail('failed-precondition', 'daily-limit');
+      return {
+        wallet: payWith === 'salmon' ? { salmon: -1 } : undefined,
+        user: { boostDay: today, boostCount: count + 1 },
+        result: { boosts: count + 1 },
+      };
+    });
+  },
+
   // ----- Store -----
 
   async buyCat(uid, data) {
@@ -412,7 +428,8 @@ const actions: Record<string, Handler> = {
         tuna: sameDay ? int(user.earnedTuna) : 0,
         salmon: sameDay ? int(user.earnedSalmon) : 0,
       };
-      treats = Math.max(0, Math.min(treats, eco.dailyGameCap.treats - earned.treats));
+      const boosts = user.boostDay === today ? int(user.boostCount) : 0;
+      treats = Math.max(0, Math.min(treats, eco.dailyTreatCap(boosts) - earned.treats));
       tuna = Math.max(0, Math.min(tuna, eco.dailyGameCap.tuna - earned.tuna));
       salmon = Math.max(0, Math.min(salmon, eco.dailyGameCap.salmon - earned.salmon));
 

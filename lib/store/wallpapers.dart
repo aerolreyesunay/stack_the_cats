@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -166,6 +167,17 @@ class Wallpapers {
 
 /// Paints [wallpaper] over [size]. [scroll] moves the pattern with the
 /// tower so it feels attached to the wall.
+/// How tall one repeat of [pattern] is: a whole number of rows (two, where
+/// rows alternate), so a scrolled wall wraps without a jump.
+double wallpaperPeriod(WallPattern pattern) => switch (pattern) {
+  WallPattern.stripes || WallPattern.dots || WallPattern.hearts => 96,
+  WallPattern.plaid || WallPattern.checks => 64,
+  WallPattern.fish || WallPattern.crowns || WallPattern.blossoms => 128,
+  WallPattern.leaves => 144,
+  WallPattern.paws => 160,
+  WallPattern.stars => 288,
+};
+
 void paintWallpaper(
   Canvas canvas,
   Size size,
@@ -174,9 +186,12 @@ void paintWallpaper(
 }) {
   canvas.drawRect(Offset.zero & size, Paint()..color = wallpaper.background);
   final ink = Paint()..color = wallpaper.ink;
-  // How far the pattern repeats vertically (so scrolling wraps smoothly).
-  const tile = 96.0;
-  final shift = scroll % tile;
+  final period = wallpaperPeriod(wallpaper.pattern);
+  final shift = scroll % period;
+  // Rows start a full repeat above the top and run just past the bottom,
+  // so shapes cut by either edge are drawn.
+  final top = shift - period;
+  final bottom = size.height + 24;
 
   switch (wallpaper.pattern) {
     case WallPattern.stripes:
@@ -184,7 +199,7 @@ void paintWallpaper(
         canvas.drawRect(Rect.fromLTWH(x, 0, 22, size.height), ink);
       }
     case WallPattern.dots:
-      for (double y = -tile + shift; y < size.height + tile; y += 48) {
+      for (double y = top; y < bottom; y += 48) {
         final row = ((y - shift) / 48).round();
         for (double x = (row.isEven ? 12 : 36); x < size.width; x += 48) {
           canvas.drawCircle(Offset(x, y), 9, ink);
@@ -194,62 +209,64 @@ void paintWallpaper(
       for (double x = 0; x < size.width; x += 64) {
         canvas.drawRect(Rect.fromLTWH(x, 0, 16, size.height), ink);
       }
-      for (double y = -tile + shift; y < size.height + tile; y += 64) {
+      for (double y = top; y < bottom; y += 64) {
         canvas.drawRect(Rect.fromLTWH(0, y, size.width, 16), ink);
       }
     case WallPattern.leaves:
-      for (double y = -tile + shift; y < size.height + tile; y += 72) {
+      for (double y = top; y < bottom; y += 72) {
         final row = ((y - shift) / 72).round();
         for (double x = (row.isEven ? 24 : 60); x < size.width; x += 72) {
           _leaf(canvas, Offset(x, y), row.isEven ? 0.5 : -0.5, ink);
         }
       }
     case WallPattern.fish:
-      for (double y = -tile + shift; y < size.height + tile; y += 64) {
+      for (double y = top; y < bottom; y += 64) {
         final row = ((y - shift) / 64).round();
         for (double x = (row.isEven ? 20 : 52); x < size.width; x += 64) {
           _fish(canvas, Offset(x, y), facingRight: row.isEven, paint: ink);
         }
       }
     case WallPattern.stars:
-      final rng = Random(7);
-      for (double y = -tile + shift; y < size.height + tile; y += tile) {
+      const block = 96.0;
+      for (double y = top; y < bottom; y += block) {
+        // Three different blocks of stars, repeating.
+        final rng = Random(7 + ((y - shift) / block).round() % 3);
         for (var i = 0; i < 6; i++) {
           final x = rng.nextDouble() * size.width;
-          final dy = rng.nextDouble() * tile;
+          final dy = rng.nextDouble() * block;
           _star(canvas, Offset(x, y + dy), 4 + rng.nextDouble() * 5, ink);
         }
       }
     case WallPattern.paws:
-      for (double y = -tile + shift; y < size.height + tile; y += 80) {
+      for (double y = top; y < bottom; y += 80) {
         final row = ((y - shift) / 80).round();
         for (double x = (row.isEven ? 26 : 66); x < size.width; x += 80) {
           _paw(canvas, Offset(x, y), row.isEven ? 0.3 : -0.3, ink);
         }
       }
     case WallPattern.hearts:
-      for (double y = -tile + shift; y < size.height + tile; y += 48) {
+      for (double y = top; y < bottom; y += 48) {
         final row = ((y - shift) / 48).round();
         for (double x = (row.isEven ? 16 : 40); x < size.width; x += 48) {
           _heart(canvas, Offset(x, y), 8, ink);
         }
       }
     case WallPattern.checks:
-      for (double y = -tile + shift; y < size.height + tile; y += 32) {
+      for (double y = top; y < bottom; y += 32) {
         final row = ((y - shift) / 32).round();
         for (double x = row.isEven ? 0 : 32; x < size.width; x += 64) {
           canvas.drawRect(Rect.fromLTWH(x, y, 32, 32), ink);
         }
       }
     case WallPattern.crowns:
-      for (double y = -tile + shift; y < size.height + tile; y += 64) {
+      for (double y = top; y < bottom; y += 64) {
         final row = ((y - shift) / 64).round();
         for (double x = (row.isEven ? 28 : 64); x < size.width; x += 72) {
           _crown(canvas, Offset(x, y), ink);
         }
       }
     case WallPattern.blossoms:
-      for (double y = -tile + shift; y < size.height + tile; y += 64) {
+      for (double y = top; y < bottom; y += 64) {
         final row = ((y - shift) / 64).round();
         for (double x = (row.isEven ? 24 : 58); x < size.width; x += 68) {
           _blossom(canvas, Offset(x, y), row.isEven ? 9 : 6.5, ink);
@@ -382,4 +399,65 @@ void _blossom(Canvas canvas, Offset at, double r, Paint paint) {
     );
   }
   canvas.drawPath(path, paint);
+}
+
+/// The wallpaper drawn once into an image one repeat tall, so the game
+/// paints a few copies of it per frame instead of every shape (which made
+/// slower phones lag).
+class WallpaperCache {
+  ui.Image? _band;
+  Wallpaper? _wallpaper;
+  double _width = 0;
+  double _pixelRatio = 0;
+
+  void paint(
+    Canvas canvas,
+    Size size,
+    Wallpaper wallpaper, {
+    double scroll = 0,
+    required double pixelRatio,
+  }) {
+    final period = wallpaperPeriod(wallpaper.pattern);
+    var band = _band;
+    if (band == null ||
+        _wallpaper != wallpaper ||
+        _width != size.width ||
+        _pixelRatio != pixelRatio) {
+      band?.dispose();
+      final recorder = ui.PictureRecorder();
+      final bandCanvas = Canvas(recorder)
+        ..scale(pixelRatio)
+        ..clipRect(Rect.fromLTWH(0, 0, size.width, period));
+      paintWallpaper(bandCanvas, Size(size.width, period), wallpaper);
+      final picture = recorder.endRecording();
+      band = _band = picture.toImageSync(
+        (size.width * pixelRatio).ceil(),
+        (period * pixelRatio).ceil(),
+      );
+      picture.dispose();
+      _wallpaper = wallpaper;
+      _width = size.width;
+      _pixelRatio = pixelRatio;
+    }
+    final src = Rect.fromLTWH(
+      0,
+      0,
+      band.width.toDouble(),
+      band.height.toDouble(),
+    );
+    final paint = Paint()..filterQuality = FilterQuality.low;
+    for (var y = scroll % period - period; y < size.height; y += period) {
+      canvas.drawImageRect(
+        band,
+        src,
+        Rect.fromLTWH(0, y, size.width, period),
+        paint,
+      );
+    }
+  }
+
+  void dispose() {
+    _band?.dispose();
+    _band = null;
+  }
 }

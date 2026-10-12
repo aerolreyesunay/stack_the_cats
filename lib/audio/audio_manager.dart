@@ -160,10 +160,24 @@ class AudioManager {
   /// when everything was stopped knows to stay quiet.
   int _sfxGeneration = 0;
 
+  /// When each pooled sound last started, see [_minGap].
+  final Map<String, DateTime> _lastStart = {};
+
+  /// A pooled sound starts at most this often. A pool with all its players
+  /// busy makes a new player for every extra start, which loads the file
+  /// again and can freeze slower phones; nobody hears the difference.
+  static const _minGap = Duration(milliseconds: 90);
+
   void playSfx(String file, {double volume = sfxVolume}) {
     if (!sfxOn) return;
     final generation = _sfxGeneration;
     final pool = _pools[file];
+    if (pool != null) {
+      final now = DateTime.now();
+      final last = _lastStart[file];
+      if (last != null && now.difference(last) < _minGap) return;
+      _lastStart[file] = now;
+    }
     _safe(() async {
       if (pool != null) {
         final stop = await pool.start(volume: volume);

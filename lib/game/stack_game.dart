@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
@@ -397,6 +398,15 @@ class StackGame extends FlameGame {
   @override
   Color backgroundColor() => _wallpaper.background;
 
+  /// The wallpaper, drawn once into an image (see [WallpaperCache]).
+  final _wallCache = WallpaperCache();
+
+  @override
+  void onRemove() {
+    _wallCache.dispose();
+    super.onRemove();
+  }
+
   @override
   Future<void> onLoad() async {
     add(TapArea(_handleTap));
@@ -412,8 +422,11 @@ class StackGame extends FlameGame {
   AudioManager get audio => AudioManager.instance;
 
   void _handleTap() {
-    if (phase != Phase.over) audio.playSfx(Sfx.tap);
+    // Only a tap that drops a cat makes a sound: extra taps while a cat
+    // falls used to start a new sound each, and on some phones a burst of
+    // them froze the game.
     if (phase == Phase.swinging && active != null && _realignFrom == null) {
+      audio.playSfx(Sfx.tap);
       phase = Phase.falling;
       active!.vy = 0;
     }
@@ -903,11 +916,13 @@ class StackGame extends FlameGame {
     super.render(canvas);
 
     // Wallpaper (moves gently with the tower so it feels like a wall).
-    paintWallpaper(
+    _wallCache.paint(
       canvas,
       Size(size.x, size.y),
       _wallpaper,
       scroll: scroll * 0.5,
+      pixelRatio:
+          ui.PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 2,
     );
 
     // Floor and cushion (these move with the scroll)
@@ -929,11 +944,14 @@ class StackGame extends FlameGame {
     final sway = sin(time * 2.4) * min(5.0, lean * 8);
     for (int i = 0; i < tower.length; i++) {
       final c = tower[i];
+      // Only the cats on screen (a tall tower has far more below).
+      final y = c.y + scroll;
+      if (y < -catH || y > size.y + catH) continue;
       final t = tower.length <= 1 ? 0.0 : i / (tower.length - 1);
       paintCat(
         canvas,
         c.look,
-        Offset(c.x + sway * t, c.y + scroll),
+        Offset(c.x + sway * t, y),
         catW,
         catH,
         squash: c.squash,

@@ -30,6 +30,7 @@ A cozy cat-stacking game: tap to drop swinging cats onto a tower and keep it bal
 - `functions/src/index.ts`: every server action (start game, landings, revive, matches, friends bonus and so on)
 - `functions/src/economy.ts`: the economy rules (prices, rewards, limits), which are the source of truth
 - `firestore.rules`, `database.rules.json`: security rules
+- `lib/ui/share_result.dart`: the after-game share card (1080×1350; gold/silver/bronze for weekly #1-3, a ranked card for #4-20)
 - `marketing/play-store/`: store listing text and form answers (`listing.md`), icon, feature graphic, screenshots
 
 ## How the economy works (important)
@@ -87,7 +88,7 @@ firebase deploy --only functions,firestore:rules,database
 
 - Play Console: personal developer account "JCAN Studios".
 - **Closed testing (Alpha):** approved 2026-10-07; 6 testers opted in that day. Build 4 sent for review 2026-10-07.
-- **Builds:** 3 = best score above the score, button walkthrough, Realign nudge, new buttons. 4 = "First L." names for non-friends (server and rules deployed 2026-10-07). 5 = in-app update prompt (code done and committed; the bundle still has to be built and uploaded). Updates can only prompt players who already have build 5 or later.
+- **Builds:** 3 = best score above the score, button walkthrough, Realign nudge, new buttons. 4 = "First L." names for non-friends (server and rules deployed 2026-10-07). 5 = in-app update prompt (only players with build 5 or later get prompted). 6 = treat limit boost (+2000 for a video, or a Salmon when no video, 3 times a day), "Share my stack" card after a game, and lag fixes (cached wallpapers, off-screen cats skipped, tap sound only on a drop). Build 6 needs the server deployed first (`boostEarnLimit`).
 - Players without the prompt get updates the normal Play Store way (auto-update or Manage apps).
 - **Next:** get to **12+ real testers** (Android and Gmail) through the opt-in link. They must stay opted in for **14 days in a row**, and then you can apply for production. Your own accounts shouldn't count toward the 12.
 - **AdMob:** payment profile done, account verification pending. Link the app to the store in AdMob only **after** it's public in production. Until then, no real ads are served.
@@ -96,7 +97,7 @@ firebase deploy --only functions,firestore:rules,database
 
 ## Ideas for later
 
-- Testers say treats feel limited. The daily cap (2000 treats from games) is probably not being hit; basic-cat Purrfects pay 0 and streaks start at the 4th Purrfect, so normal play earns slowly. An idea: pay 2 per basic Purrfect, start streaks at the 3rd, maybe raise the cap to 3000. Keep a cap: it bounds bots that slip past the bot checks (and protects wagers). Check `earnedTreats`/`earnDay` in `users/{id}` first. Match prizes (Friendly and wagers) don't count toward the cap.
+- Testers say treats feel limited (partly answered by the limit boost in build 6). The daily cap (2000 treats from games) is probably not being hit; basic-cat Purrfects pay 0 and streaks start at the 4th Purrfect, so normal play earns slowly. An idea: pay 2 per basic Purrfect, start streaks at the 3rd, maybe raise the cap to 3000. Keep a cap: it bounds bots that slip past the bot checks (and protects wagers). Check `earnedTreats`/`earnDay` in `users/{id}` first. Match prizes (Friendly and wagers) don't count toward the cap.
 - Report and block players (leaderboards and matches). Google's content rating questions asked about this.
 - Firebase Analytics for retention (update the Data safety form and keep it out of kids' mode).
 - An iOS version once Android has shown it can earn money.

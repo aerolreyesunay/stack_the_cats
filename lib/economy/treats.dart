@@ -55,6 +55,12 @@ class Treats {
   static const dailyGameTuna = 3;
   static const dailyGameSalmon = 2;
 
+  /// Once games have paid the day's treats, a video (or a Salmon, when no
+  /// video is available) raises the treat limit by this much, up to
+  /// [maxLimitBoosts] times a day. The server keeps the same numbers.
+  static const limitBoost = 2000;
+  static const maxLimitBoosts = 3;
+
   /// Paid to both players when a friend request is accepted.
   static const friendAcceptedReward = 5;
 

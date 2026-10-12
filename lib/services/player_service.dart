@@ -40,6 +40,8 @@ class PlayerData {
     this.earnedTreats = 0,
     this.earnedTuna = 0,
     this.earnedSalmon = 0,
+    this.boostDay,
+    this.boostCount = 0,
   });
 
   /// What normal games paid on [earnDay] (UTC), for the daily limit.
@@ -47,6 +49,13 @@ class PlayerData {
   final int earnedTreats;
   final int earnedTuna;
   final int earnedSalmon;
+
+  /// Treat limit boosts (a video or a Salmon each) used on [boostDay] (UTC).
+  final String? boostDay;
+  final int boostCount;
+
+  /// Treat limit boosts used today.
+  int limitBoostsOn(String today) => boostDay == today ? boostCount : 0;
 
   /// Cats stacked in all games, as counted by the server.
   final int landingsTotal;
@@ -148,6 +157,8 @@ class PlayerData {
     earnedTreats: (d['earnedTreats'] as num?)?.toInt() ?? 0,
     earnedTuna: (d['earnedTuna'] as num?)?.toInt() ?? 0,
     earnedSalmon: (d['earnedSalmon'] as num?)?.toInt() ?? 0,
+    boostDay: d['boostDay'] as String?,
+    boostCount: (d['boostCount'] as num?)?.toInt() ?? 0,
   );
 
   PlayerData copyWith({
@@ -189,6 +200,8 @@ class PlayerData {
     earnedTreats: earnedTreats,
     earnedTuna: earnedTuna,
     earnedSalmon: earnedSalmon,
+    boostDay: boostDay,
+    boostCount: boostCount,
   );
 
   ShareAllowance get shares => ShareAllowance.compute(
@@ -419,7 +432,11 @@ class PlayerService {
     final saved = _latest;
     final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
     final sameDay = saved?.earnDay == today;
-    var treats = Treats.dailyGameTreats - (sameDay ? saved!.earnedTreats : 0);
+    final boosts = saved?.limitBoostsOn(today) ?? 0;
+    var treats =
+        Treats.dailyGameTreats +
+        Treats.limitBoost * boosts -
+        (sameDay ? saved!.earnedTreats : 0);
     var tuna = Treats.dailyGameTuna - (sameDay ? saved!.earnedTuna : 0);
     var salmon = Treats.dailyGameSalmon - (sameDay ? saved!.earnedSalmon : 0);
     for (final change in _pending.values.where((c) => c.fromGame)) {
@@ -490,6 +507,23 @@ class PlayerService {
       'wallpaperId': wallpaper.id,
     }, change: WalletChange(wallpaper: wallpaper.id));
     return true;
+  }
+
+  /// Treat limit boosts left today (a video or a Salmon each).
+  int get limitBoostsLeft {
+    final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
+    final used = _latest?.limitBoostsOn(today) ?? 0;
+    return Treats.maxLimitBoosts - used;
+  }
+
+  /// Raises today's treat limit from games by [Treats.limitBoost], after a
+  /// video or for a Salmon. Returns whether the server agreed.
+  Future<bool> boostTreatLimit({required bool withSalmon}) async {
+    if (player.value == null || limitBoostsLeft <= 0) return false;
+    final result = await run('boostEarnLimit', {
+      'payWith': withSalmon ? 'salmon' : 'ad',
+    }, change: withSalmon ? const WalletChange(salmon: -1) : WalletChange.none);
+    return result != null;
   }
 
   /// Treats for watching a Store video (a few times a day). Returns false

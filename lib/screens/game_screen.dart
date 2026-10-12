@@ -108,21 +108,68 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  /// "That's today's treats from games", once a day.
-  static String? _limitSaidOn;
+  /// Which limit was last announced: the day and the boosts left (each
+  /// boost raises the limit, so reaching it again says so again).
+  static String? _limitSaidFor;
 
+  /// Today's treats from games are used up: offers to raise the limit with
+  /// a video, or with a Salmon when no video is available.
   void _sayEarnLimit() {
+    if (!mounted) return;
     final today = DateTime.now().toUtc().toIso8601String().substring(0, 10);
-    if (_limitSaidOn == today || !mounted) return;
-    _limitSaidOn = today;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+    final boostsLeft = _player.limitBoostsLeft;
+    final key = '$today#$boostsLeft';
+    if (_limitSaidFor == key) return;
+    _limitSaidFor = key;
+    final adReady = AdService.instance.rewardedReady.value;
+    final salmon = _player.player.value?.salmon ?? 0;
+    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
+    if (boostsLeft <= 0 || (!adReady && salmon <= 0)) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            "That's all the treats games can earn today. Keep stacking for "
+            'the leaderboard; treats are back tomorrow!',
+          ),
+        ),
+      );
+      return;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 10),
         content: Text(
-          "That's all the treats games can earn today. Keep stacking for "
-          'the leaderboard; treats are back tomorrow!',
+          "That's today's treat limit. "
+          '${adReady ? 'Watch a video' : 'Use a Salmon'} to earn '
+          '${Treats.limitBoost} more today?',
+        ),
+        action: SnackBarAction(
+          label: adReady ? 'Watch' : 'Use Salmon',
+          onPressed: () => _boostTreatLimit(withSalmon: !adReady),
         ),
       ),
     );
+  }
+
+  Future<void> _boostTreatLimit({required bool withSalmon}) async {
+    Future<void> boost() async {
+      final ok = await _player.boostTreatLimit(withSalmon: withSalmon);
+      if (!ok || !mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You can earn ${Treats.limitBoost} more treats today. '
+            'Keep stacking!',
+          ),
+        ),
+      );
+    }
+
+    if (withSalmon) {
+      await boost();
+    } else {
+      await _watchAdFor(() => boost());
+    }
   }
 
   /// This run on the server (null for guests).

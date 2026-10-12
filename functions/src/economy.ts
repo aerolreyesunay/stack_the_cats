@@ -289,6 +289,15 @@ export function boardName(name: unknown): string {
  * games still count for the leaderboard but pay nothing until tomorrow. */
 export const dailyGameCap = { treats: 2000, tuna: 3, salmon: 2 };
 
+/** Once games have paid the day's treats, a video (or a Salmon, when no
+ * video is available) raises the treat limit, a few times a day. */
+export const earnLimitBoost = { treats: 2000, perDay: 3 };
+
+/** Today's treat limit for games after [boosts] boosts. */
+export function dailyTreatCap(boosts: number): number {
+  return dailyGameCap.treats + earnLimitBoost.treats * Math.min(Math.max(0, boosts), earnLimitBoost.perDay);
+}
+
 /** A game is judged machine-played once it has this many cats and... */
 export const botMinLandings = 50;
 /** ...this share of them were Purrfect (people manage far fewer)... */
