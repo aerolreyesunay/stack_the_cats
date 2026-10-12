@@ -88,7 +88,7 @@ firebase deploy --only functions,firestore:rules,database
 
 - Play Console: personal developer account "JCAN Studios".
 - **Closed testing (Alpha):** approved 2026-10-07; 6 testers opted in that day. Build 4 sent for review 2026-10-07.
-- **Builds:** 3 = best score above the score, button walkthrough, Realign nudge, new buttons. 4 = "First L." names for non-friends (server and rules deployed 2026-10-07). 5 = in-app update prompt (only players with build 5 or later get prompted). 6 = treat limit boost (+2000 for a video, or a Salmon when no video, 3 times a day), "Share my stack" card after a game, and lag fixes (cached wallpapers, off-screen cats skipped, tap sound only on a drop). Build 6 needs the server deployed first (`boostEarnLimit`).
+- **Builds:** 3 = best score above the score, button walkthrough, Realign nudge, new buttons. 4 = "First L." names for non-friends (server and rules deployed 2026-10-07). 5 = in-app update prompt (only players with build 5 or later get prompted). 6 = treat limit boost (+2000 for a video, or a Salmon when no video, 3 times a day), "Share my stack" card after a game, and lag fixes (cached wallpapers, off-screen cats skipped, tap sound only on a drop). Server for build 6 (`boostEarnLimit`) deployed 2026-10-12.
 - Players without the prompt get updates the normal Play Store way (auto-update or Manage apps).
 - **Next:** get to **12+ real testers** (Android and Gmail) through the opt-in link. They must stay opted in for **14 days in a row**, and then you can apply for production. Your own accounts shouldn't count toward the 12.
 - **AdMob:** payment profile done, account verification pending. Link the app to the store in AdMob only **after** it's public in production. Until then, no real ads are served.
