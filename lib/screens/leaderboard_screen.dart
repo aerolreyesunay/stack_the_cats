@@ -7,6 +7,9 @@ import '../economy/treats.dart';
 import '../services/age_gate.dart';
 import '../services/friends_service.dart';
 import '../services/leaderboard_service.dart';
+import '../services/player_service.dart';
+import '../store/catalog.dart';
+import '../ui/share_result.dart';
 
 const _brown = Color(0xFF5B3A29);
 const _muted = Color(0xFF8A6A55);
@@ -136,7 +139,7 @@ class _BoardViewState extends State<_BoardView>
                     : _list(data),
               ),
             ),
-            _MyFooter(entries: data.entries, me: data.me),
+            _MyFooter(board: widget.board, entries: data.entries, me: data.me),
           ],
         );
       },
@@ -149,6 +152,7 @@ class _BoardViewState extends State<_BoardView>
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       itemCount: data.entries.length,
       itemBuilder: (context, i) => _Row(
+        board: widget.board,
         rank: i + 1,
         entry: data.entries[i],
         isMe: data.entries[i].uid == myUid,
@@ -185,8 +189,14 @@ class _WeekCountdown extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.rank, required this.entry, required this.isMe});
+  const _Row({
+    required this.board,
+    required this.rank,
+    required this.entry,
+    required this.isMe,
+  });
 
+  final Board board;
   final int rank;
   final LeaderboardEntry entry;
   final bool isMe;
@@ -233,11 +243,17 @@ class _Row extends StatelessWidget {
               color: _brown,
             ),
           ),
-          // Same width on every row so the scores line up.
+          // Same width on every row so the scores line up. The player's
+          // own row has Share (a poster of their rank) instead.
           SizedBox(
             width: 40,
-            child: isMe || AgeGate.instance.isKid
+            child: AgeGate.instance.isKid
                 ? null
+                : isMe
+                ? _ShareRankButton(
+                    board: board,
+                    standing: MyStanding(rank: rank, score: entry.score),
+                  )
                 : _AddFriendButton(entry: entry),
           ),
         ],
@@ -396,41 +412,80 @@ class _Avatar extends StatelessWidget {
 }
 
 /// Pinned at the bottom: the player's own rank, or a nudge to sign in.
+/// The player's place when it's below the list (with Share), or how to get
+/// on the board. Hidden when their row is already in the list.
 class _MyFooter extends StatelessWidget {
-  const _MyFooter({required this.entries, required this.me});
+  const _MyFooter({
+    required this.board,
+    required this.entries,
+    required this.me,
+  });
 
+  final Board board;
   final List<LeaderboardEntry> entries;
   final MyStanding? me;
 
   @override
   Widget build(BuildContext context) {
     final user = AuthService.instance.currentUser;
+    final standing = me;
     final String text;
     if (user == null) {
       text = 'Sign in on the main menu to join the leaderboard';
-    } else if (me == null) {
+    } else if (standing == null) {
       text = 'Finish a game to get on the board';
-    } else if (me!.rank <= entries.length) {
-      // Already visible (and highlighted) in the list.
+    } else if (standing.rank <= entries.length) {
+      // Already visible (and highlighted, with Share) in the list.
       return const SizedBox.shrink();
     } else {
-      text = 'You: #${me!.rank} with ${me!.score} cats';
+      text = 'You: #${standing.rank} with ${standing.score} cats';
     }
+    final canShare = standing != null && !AgeGate.instance.isKid;
     return SafeArea(
       top: false,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: EdgeInsets.fromLTRB(16, 14, canShare ? 6 : 16, 14),
         color: Colors.white,
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: _brown,
-          ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                text,
+                textAlign: canShare ? TextAlign.start : TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: _brown,
+                ),
+              ),
+            ),
+            if (canShare) _ShareRankButton(board: board, standing: standing),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+/// Opens a poster of the player's rank on [board] to share.
+class _ShareRankButton extends StatelessWidget {
+  const _ShareRankButton({required this.board, required this.standing});
+
+  final Board board;
+  final MyStanding standing;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Share my rank',
+      color: _accent,
+      icon: const Icon(Icons.share_rounded),
+      onPressed: () => showShareRank(
+        context,
+        board: board,
+        standing: standing,
+        pool: PlayerService.instance.player.value?.catPool ?? Cats.basic,
       ),
     );
   }

@@ -14,3 +14,11 @@ String publicName(String? fullName) {
   if (words.length == 1) return first;
   return '$first ${words.last.characters.first.toUpperCase()}.';
 }
+
+/// Just the first name, for shared pictures ("Aerol"; "Cat stacker" if
+/// there's no name).
+String firstName(String? fullName) {
+  final words = (fullName ?? '').trim().split(RegExp(r'\s+'));
+  if (words.first.isEmpty) return 'Cat stacker';
+  return words.first.characters.take(30).toString();
+}

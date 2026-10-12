@@ -36,10 +36,6 @@ class GameSession {
   /// game earn).
   static Future<void> _queue = Future.value();
 
-  /// Completes once everything sent so far has reached the server (e.g.
-  /// so the leaderboard has the latest score).
-  static Future<void> get allSent => _queue;
-
   final List<Map<String, Object>> _batch = [];
   String _batchOpId = ServerApi.newOpId();
 

@@ -18,7 +18,7 @@ A cozy cat-stacking game: tap to drop swinging cats onto a tower and keep it bal
 | Ads | Google AdMob (`lib/ads/`) |
 | Updates | Google Play in-app updates (`in_app_update`, `lib/services/app_update_service.dart`), from build 5 |
 | Firebase project | `stack-the-cats-9538a` (Blaze plan, $1/month budget alert) |
-| Website | https://jcanstudios.github.io/stack-the-cats/ (privacy policy, delete-data page); `app-ads.txt` at the domain root |
+| Website | https://jcanstudios.github.io/stack-the-cats/ (privacy policy, delete-data page); `app-ads.txt` at the domain root. Repo `jcanstudios/jcanstudios.github.io`, local copy in `D:/personalProjects/webapps/jcanstudios.github.io` |
 
 ## Code map
 
@@ -30,7 +30,7 @@ A cozy cat-stacking game: tap to drop swinging cats onto a tower and keep it bal
 - `functions/src/index.ts`: every server action (start game, landings, revive, matches, friends bonus and so on)
 - `functions/src/economy.ts`: the economy rules (prices, rewards, limits), which are the source of truth
 - `firestore.rules`, `database.rules.json`: security rules
-- `lib/ui/share_result.dart`: the after-game share card (1080×1350; gold/silver/bronze for weekly #1-3, a ranked card for #4-20)
+- `lib/ui/share_result.dart`: the shared pictures (1080×1350, cartoon style, Lilita One font in `assets/fonts/`, app icon in `assets/branding/app_icon.png`): the after-game card (no rank) and the leaderboard rank posters (purple weekly, red Hall of Fame; podium for #1-3). All use the logo header and the player's first name only
 - `marketing/play-store/`: store listing text and form answers (`listing.md`), icon, feature graphic, screenshots
 
 ## How the economy works (important)
@@ -44,6 +44,12 @@ So any change to prices, rewards or limits must be made in `functions/src/econom
 - Anyone who isn't a friend sees **"First L."** (first name and last initial): leaderboards, random matches, friend requests and online status. The rule is `boardName` in `functions/src/economy.ts` and `publicName` in `lib/services/public_name.dart`; keep the two the same.
 - **Full names** are only in `profiles/{uid}`, which only the player and their friends can read (`firestore.rules`). The leaderboard swaps in full names for friends and the player themself (`LeaderboardService.withFullNames`). Friend-to-friend challenges use full names.
 - Kids only ever show their made-up name ("Sleepy Kitten 42").
+
+## Sharing
+
+- Shared text links to **https://jcanstudios.github.io/stack-the-cats/get/** (website repo, `stack-the-cats/get/index.html`): Android goes to Google Play (tagged `utm_source=share`, `utm_medium=poster`), iPhone to the App Store once `APP_STORE` is set in that page (until then a coming-soon page), anything else sees both buttons.
+- Pictures can't be links. Facebook drops pre-filled text when an image is shared from an app, and Instagram feed and TikTok captions don't make links tappable; WhatsApp, Messenger, X and texts do.
+- No sharing in kids' mode.
 
 ## Kids' mode
 
@@ -88,7 +94,7 @@ firebase deploy --only functions,firestore:rules,database
 
 - Play Console: personal developer account "JCAN Studios".
 - **Closed testing (Alpha):** approved 2026-10-07; 6 testers opted in that day. Build 4 sent for review 2026-10-07.
-- **Builds:** 3 = best score above the score, button walkthrough, Realign nudge, new buttons. 4 = "First L." names for non-friends (server and rules deployed 2026-10-07). 5 = in-app update prompt (only players with build 5 or later get prompted). 6 = treat limit boost (+2000 for a video, or a Salmon when no video, 3 times a day), "Share my stack" card after a game, and lag fixes (cached wallpapers, off-screen cats skipped, tap sound only on a drop). Server for build 6 (`boostEarnLimit`) deployed 2026-10-12.
+- **Builds:** 3 = best score above the score, button walkthrough, Realign nudge, new buttons. 4 = "First L." names for non-friends (server and rules deployed 2026-10-07). 5 = in-app update prompt (only players with build 5 or later get prompted). 6 = treat limit boost (+2000 for a video, or a Salmon when no video, 3 times a day), "Share my stack" card after a game, and lag fixes (cached wallpapers, off-screen cats skipped, tap sound only on a drop). Server for build 6 (`boostEarnLimit`) deployed 2026-10-12. 7 = cartoon share card. 8 = no rank on the after-game card, rank posters shared from the player's own leaderboard row, logo header, first names, smart share link.
 - Players without the prompt get updates the normal Play Store way (auto-update or Manage apps).
 - **Next:** get to **12+ real testers** (Android and Gmail) through the opt-in link. They must stay opted in for **14 days in a row**, and then you can apply for production. Your own accounts shouldn't count toward the 12.
 - **AdMob:** payment profile done, account verification pending. Link the app to the store in AdMob only **after** it's public in production. Until then, no real ads are served.
